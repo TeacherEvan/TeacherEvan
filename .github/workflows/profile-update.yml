@@ -1,0 +1,35 @@
+name: Refresh PickaBoo Assets
+
+on:
+  schedule:
+    - cron: '0 0 * * *'    # daily midnight UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
+          pip install -q Pillow
+
+      - name: Regenerate PickaBoo banner GIF
+        run: python scripts/generate_pickaboo_loop.py
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/ docs/index.html public/index.html
+          git diff --staged --quiet || git commit -m "chore: refresh pickaboo assets [skip ci]"
+          git push || true
