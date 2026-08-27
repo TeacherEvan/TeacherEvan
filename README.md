@@ -92,7 +92,7 @@ gh repo create TeacherEvan/TeacherEvan --public --source=. --remote=origin --pus
 # Place README.md (this file) and pickaboo.html into that repo root; commit; push
 ```
 
-> Note: The profile repo `TeacherEvan/TeacherEvan` does not currently exist (verified via `gh repo view`). After confirming the username, create it and push both files. The static README renders at `github.com/TeacherEvan`; the interactive widget is accessible via its direct URL (GitHub Pages / hosted link), not embedded inside `.md`.
+> Note: The profile repo `TeacherEvan/TeacherEvan` exists (verified via `gh repo view`). Both `README.md` and `pickaboo.html` are pushed there. The static README renders at `github.com/TeacherEvan`; the interactive widget is accessible via its direct URL (GitHub Pages / hosted link), not embedded inside `.md`.
 
 ---
 
