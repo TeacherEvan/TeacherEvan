@@ -35,12 +35,12 @@
 ### 👾 About Me
 
 ```typescript
-const PickaBoo: Developer = {
+const PickaBoo: Creater = {
   handle:   "PickaBOO",
-  role:     "Full-Stack builder & Creative Technologist",
+  role:     "Full-Stack Builder & Creative Technologist",
   pronouns: "he/him",
 
-  languages: ["TypeScript", "JavaScript", "Python", "Go", "Rust"],
+  languages: ["TypeScript", "JavaScript", "Python", "Go", ".NET"],
 
   frontend:  ["React", "Next.js", "TailwindCSS", "Three.js", "HTML5 Canvas", "WebGL"],
   backend:   ["Node.js", "FastAPI", "Django", "Flask", "GraphQL", "gRPC"],
@@ -48,7 +48,7 @@ const PickaBoo: Developer = {
   cloud:     ["AWS", "GCP", "Azure", "Docker", "Kubernetes", "GitHub Actions"],
 
   currentlyBuilding: "Real-time interactive simulations & distributed backend systems",
-  openTo:            "Senior / Lead Full-Stack roles at teams that ship with intent",
+  openTo:            "Ideas",
 
   easteregg: "The sprite in the banner chases your cursor and self-destructs in 4s 💥"
 };
