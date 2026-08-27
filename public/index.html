@@ -335,9 +335,9 @@ class PickaBoo {
   }
 }
 
-// Spawn initial 9 sprites
-function spawn(n=5) { for(let i=0;i<n;i++) sprites.push(new PickaBoo()); }
-spawn(9);
+// Spawn initial 25 sprites
+function spawn(n=15) { for(let i=0;i<n;i++) sprites.push(new PickaBoo()); }
+spawn(25);
 document.getElementById('btnSpawn').addEventListener('click', () => spawn(4));
 
 // ── Star helper ───────────────────────────────────────────────────────────────
