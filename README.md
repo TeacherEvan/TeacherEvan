@@ -7,7 +7,7 @@
 
 <br/><br/>
 
-# 🀄️🇿🇦🇿🇦🇿🇦🇿🇦🇿🇦🇿🇦🇿🇦🇿🇦🇿🇦🇿🇦🀄️👾👾Ewaldt Botha 👾👾🀄️🇿🇦🇿🇦🇿🇦🇿🇦🇿🇦🇿🇦🇿🇦🇿🇦🇿🇦🇿🇦🀄️
+# 🀄️🇿🇦🇿🇦🇿🇦🀄️👾👾Ewaldt Botha 👾👾🀄️🇿🇦🇿🇦🇿🇦🀄️
 ### Full-Stack creationist · Creative Technologist · Educator - Penguin
 
 <p>
