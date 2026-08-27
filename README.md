@@ -2,16 +2,16 @@
 
 <!-- PickaBoo Banner — click to open the live interactive game -->
 <a href="https://TeacherEvan.github.io/TeacherEvan/" target="_blank" title="Click to play the live PickaBoo cursor game!">
-  <img src="assets/pickaboo-loop.gif" alt="PickaBoo — 4-second self-destruct sprite loop" width="100%" />
+  <img src="assets/pickaboo-loop.gif" alt="PickaBoo" width="100%" />
 </a>
 
 <br/><br/>
 
-# Hi, I'm PickaBoo 👾
-### Full-Stack Engineer · Creative Technologist · Educator
+# Ewaldt Botha 👾
+### Full-Stack creationist · Creative Technologist · Educator - Penguin
 
 <p>
-  <em>I build things that scale, things that teach, and things that <strong>explode in 4 seconds.</strong></em>
+  <em>I build things that scale, things that teach, and things that <strong>explode.</strong></em>
 </p>
 
 <!-- Status Badges -->
@@ -36,8 +36,8 @@
 
 ```typescript
 const PickaBoo: Developer = {
-  handle:   "TeacherEvan",
-  role:     "Full-Stack Engineer & Creative Technologist",
+  handle:   "PickaBOO",
+  role:     "Full-Stack builder & Creative Technologist",
   pronouns: "he/him",
 
   languages: ["TypeScript", "JavaScript", "Python", "Go", "Rust"],
