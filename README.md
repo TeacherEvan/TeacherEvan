@@ -86,23 +86,7 @@ const PickaBoo: Creater = {
 
 ### 📊 Activity
 
-<div align="center">
-<table>
-<tr>
-<td width="50%">
-<img src="https://github-readme-stats.vercel.app/api?username=TeacherEvan&show_icons=true&hide_border=true&bg_color=0e0c16&title_color=d4af37&icon_color=b91c1c&text_color=e5e1d0&ring_color=6d28d9" width="100%" />
-</td>
-<td width="50%">
-<img src="https://github-readme-stats.vercel.app/api/top-langs/?username=TeacherEvan&layout=compact&hide_border=true&bg_color=0e0c16&title_color=d4af37&text_color=e5e1d0" width="100%" />
-</td>
-</tr>
-<tr>
-<td colspan="2">
-<img src="https://streak-stats.demolab.com/?user=TeacherEvan&hide_border=true&background=0e0c16&ring=d4af37&fire=b91c1c&currStreakLabel=d4af37&sideLabels=e5e1d0&dates=8b8070" width="100%" />
-</td>
-</tr>
-</table>
-</div>
+
 
 ---
 
