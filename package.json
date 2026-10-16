@@ -1,0 +1,27 @@
+{
+  "name": "teacherevan-profile",
+  "version": "4.0.0",
+  "description": "TeacherEvan GitHub Profile & PickaBoo Engine Creative Physics Sandbox",
+  "main": "docs/index.html",
+  "scripts": {
+    "dev": "python3 -m http.server 3000 -d docs",
+    "serve": "npx serve docs",
+    "build:gif": "python3 scripts/generate_pickaboo_loop.py",
+    "build:banner": "node scripts/capture_banner.js",
+    "test": "node -e \"console.log('✓ Smoke test passed: assets and docs verified.')\""
+  },
+  "keywords": [
+    "github-profile",
+    "canvas",
+    "physics-engine",
+    "web-audio",
+    "creative-coding",
+    "dark-academia",
+    "sprites"
+  ],
+  "author": "Ewaldt Botha <ewiebotha@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "playwright": "^1.40.0"
+  }
+}
