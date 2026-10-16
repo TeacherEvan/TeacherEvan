@@ -40,14 +40,9 @@ fs.mkdirSync(FRAMES_DIR, { recursive: true });
   await browser.close();
   console.log('All frames captured. Encoding GIF…');
 
-  // Two-pass ffmpeg GIF with high-quality dithering
+  // Two-pass ffmpeg GIF with optimized resolution & palette for crisp sub-3.5MB payload
   execSync(`ffmpeg -y -framerate ${FPS} -i ${FRAMES_DIR}/frame_%04d.png \
-    -vf "palettegen=max_colors=256:reserve_transparent=0:stats_mode=diff" \
-    ${PALETTE}`, { stdio:'inherit' });
-
-  execSync(`ffmpeg -y -framerate ${FPS} -i ${FRAMES_DIR}/frame_%04d.png \
-    -i ${PALETTE} \
-    -lavfi "paletteuse=dither=sierra2_4a:diff_mode=rectangle" \
+    -vf "fps=20,scale=800:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128:reserve_transparent=0:stats_mode=diff[p];[s1][p]paletteuse=dither=bayer:bayer_scale=3:diff_mode=rectangle" \
     ${OUTPUT}`, { stdio:'inherit' });
 
   const sizeKB = Math.round(fs.statSync(OUTPUT).size / 1024);

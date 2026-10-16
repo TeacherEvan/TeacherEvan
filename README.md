@@ -2,13 +2,13 @@
 
 <!-- PickaBoo Interactive Banner — click to launch live game -->
 <a href="https://TeacherEvan.github.io/TeacherEvan/" target="_blank" title="Click to play PickaBoo v4 with spatial sound, chain reactions & physics sandbox!">
-  <img src="assets/pickaboo-banner.svg" alt="PickaBoo Interactive Engine v4.0" width="100%" />
+  <img src="assets/pickaboo-loop.gif" alt="PickaBoo Interactive Engine v4.0" width="100%" />
 </a>
 
 <br/><br/>
 
-# 🇿🇦 Ewaldt Botha 👾
-### Full-Stack Builder · Creative Technologist · Educator
+# 🇿🇦🇿🇦🇿🇦🀄️👾Ewaldt Botha👾🀄️🇿🇦🇿🇦🇿🇦
+### Full-Stack creationist · Creative Technologist · Educator - Penguin
 
 <p>
   <em>"I build things that scale, things that teach, and things that <strong>explode.</strong>"</em>
@@ -17,7 +17,7 @@
 <!-- Status Badges -->
 <p>
   <img src="https://img.shields.io/badge/ROLE-FULL%20STACK-6d28d9?style=for-the-badge&logo=stackshare&logoColor=white" alt="Full Stack" />
-  <img src="https://img.shields.io/badge/OPEN%20TO-OPPORTUNITIES-d4af37?style=for-the-badge&logo=briefcase&logoColor=black" alt="Open to Opportunities" />
+  <img src="https://img.shields.io/badge/OPEN%20TO-WORK-d4af37?style=for-the-badge&logo=briefcase&logoColor=black" alt="Open to Work" />
   <img src="https://img.shields.io/badge/REMOTE-FRIENDLY-b91c1c?style=for-the-badge&logo=globe&logoColor=white" alt="Remote Friendly" />
   <img src="https://img.shields.io/badge/MENTORING-ACTIVE-15803d?style=for-the-badge&logo=discourse&logoColor=white" alt="Mentoring Active" />
 </p>
@@ -86,24 +86,7 @@ const PickaBoo: Creator = {
 
 ---
 
-### 📊 Activity & Telemetry
 
-<div align="center">
-
-<a href="https://github.com/TeacherEvan">
-  <img src="https://github-readme-stats.vercel.app/api?username=TeacherEvan&show_icons=true&hide_border=true&bg_color=0e0c16&title_color=d4af37&icon_color=b91c1c&text_color=e5e1d0&ring_color=6d28d9" alt="GitHub Stats" width="48%" />
-  <img src="https://github-readme-stats.vercel.app/api/top-langs/?username=TeacherEvan&layout=compact&hide_border=true&bg_color=0e0c16&title_color=d4af37&text_color=e5e1d0" alt="Top Languages" width="48%" />
-</a>
-
-<br/>
-
-<a href="https://github.com/TeacherEvan">
-  <img src="https://streak-stats.demolab.com/?user=TeacherEvan&hide_border=true&background=0e0c16&ring=d4af37&fire=b91c1c&currStreakLabel=d4af37&sideLabels=e5e1d0&dates=8b8070" alt="GitHub Streak" width="97%" />
-</a>
-
-</div>
-
----
 
 ### 🚀 Featured Work
 
