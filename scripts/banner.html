@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:900px; height:300px; overflow:hidden; background:#0e0c16; }
+  canvas { display:block; }
+</style>
+</head>
+<body>
+<canvas id="c" width="900" height="300"></canvas>
+<script>
+// ── Deterministic, tick-driven — no RAF timing jitter ─────────────────────
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const W = 900, H = 300;
+
+// Dark Academia palette
+const BG        = '#0e0c16';
+const SURFACE   = '#1a1630';
+const BORDER    = '#3e3458';
+const GOLD      = '#d4af37';
+const CRIMSON   = '#b91c1c';
+const AMBER     = '#c27a30';
+const INDIGO    = '#5a48b4';
+const PARCHMENT = '#f5e6b4';
+const ROSE      = '#b03060';
+const SAGE      = '#2d6a4f';
+
+const FW_COLORS = [
+  '#d4af37','#b91c1c','#6d28d9','#2d6a4f','#c27a30',
+  '#3b82f6','#ec4899','#f5e6b4','#14b8a6','#f97316',
+];
+
+// ── Seeded PRNG (mulberry32) ──────────────────────────────────────────────
+function mulberry32(a) {
+  return function() {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const rng = mulberry32(0xDEADBEEF);
+const r   = () => rng();
+
+// ── Pre-seed explosion particles ──────────────────────────────────────────
+const PARTICLES = Array.from({length:160}, () => ({
+  angle:  r() * Math.PI * 2,
+  speed:  r() * 420 + 80,
+  size:   r() * 8 + 3,
+  color:  FW_COLORS[Math.floor(r() * FW_COLORS.length)],
+  trail:  Math.floor(r() * 6) + 4,
+  isStar: r() > 0.5,
+}));
+
+// ── Ambient roaming sprites ───────────────────────────────────────────────
+const ROAMERS = [
+  { bx:155, by:152, ph:0.0, col:'#5a48b4', sz:17 },
+  { bx:760, by:140, ph:1.9, col:'#b91c1c', sz:16 },
+  { bx:800, by:218, ph:3.2, col:'#c27a30', sz:15 },
+  { bx: 95, by:228, ph:4.6, col:'#7b3f6e', sz:14 },
+  { bx:460, by:245, ph:5.9, col:'#2d6a4f', sz:14 },
+];
+
+// ── Timeline (seconds) ────────────────────────────────────────────────────
+// 0.00 – 0.55  chase (calm)
+// 0.55 – 3.20  countdown (colour shifts, jitter, leash, HUD)
+// 3.20 – 4.80  FIREWORK explosion (burst + trails + BANG text)
+// 4.80 – 6.00  settle + baby respawn → loop
+const T_CONTACT = 0.55;
+const T_EXPLODE = 3.20;
+const T_END     = 6.00;
+const FPS       = 25;
+const DT        = 1 / FPS;
+
+// Lead sprite deterministic position (Euler integration, same seed every frame)
+let lx = W * 0.28, ly = H * 0.52;
+
+// Cursor Lissajous path
+function cursorAt(t) {
+  const a = (t / T_END) * 2 * Math.PI;
+  return {
+    x: W/2 + 235 * Math.sin(a),
+    y: H/2 +  52 * Math.sin(2*a) + 12,
+  };
+}
+
+// ── Drawing helpers ───────────────────────────────────────────────────────
+function pill(x0,y0,x1,y1,r,fill,stroke,sw=1) {
+  ctx.beginPath();
+  ctx.roundRect(x0,y0,x1-x0,y1-y0,r);
+  if(fill)  { ctx.fillStyle=fill;   ctx.fill(); }
+  if(stroke){ ctx.strokeStyle=stroke; ctx.lineWidth=sw; ctx.stroke(); }
+}
+
+function drawStar(x,y,r,col,alpha=1){
+  ctx.save(); ctx.globalAlpha=alpha; ctx.fillStyle=col;
+  ctx.beginPath();
+  for(let i=0;i<10;i++){
+    const radius = i%2===0 ? r : r*0.42;
+    const ang    = i*Math.PI/5 - Math.PI/2;
+    i===0 ? ctx.moveTo(x+radius*Math.cos(ang),y+radius*Math.sin(ang))
+          : ctx.lineTo(x+radius*Math.cos(ang),y+radius*Math.sin(ang));
+  }
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function drawGhost(cx,cy,sz,col,mood,jitter=0,prng=null) {
+  if(jitter>0 && prng) { cx+=(prng()-.5)*jitter; cy+=(prng()-.5)*jitter; }
+  const s = sz;
+
+  // Layered glow (composited on transparent layer)
+  for(const [scale,alpha] of [[1.85,18],[1.45,35],[1.15,55]]){
+    ctx.save();
+    const grad = ctx.createRadialGradient(cx,cy,0,cx,cy,s*scale);
+    grad.addColorStop(0, col + Math.round(alpha).toString(16).padStart(2,'0'));
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(cx,cy,s*scale,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  // Body
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  ctx.arc(cx, cy-s*0.22, s*0.82, Math.PI, 0, false);
+  ctx.lineTo(cx+s*0.82, cy+s*0.62);
+  const tw = (s*1.64)/3;
+  for(let i=0;i<3;i++){
+    const fx = cx - s*0.82 + i*tw;
+    ctx.arc(fx+tw/2, cy+s*0.62, tw/2, 0, Math.PI, false);
+  }
+  ctx.closePath(); ctx.fill();
+
+  // Antenna
+  ctx.strokeStyle = PARCHMENT; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(cx,cy-s); ctx.lineTo(cx,cy-s-9); ctx.stroke();
+  ctx.fillStyle = GOLD;
+  ctx.beginPath(); ctx.arc(cx,cy-s-12,4,0,Math.PI*2); ctx.fill();
+
+  // Face
+  const ex=s*0.38, ey=cy-s*0.12, er=Math.max(2.5,s*0.19);
+  if(mood==='alarm'){
+    ctx.fillStyle=PARCHMENT;
+    for(const sign of[-1,1]){
+      ctx.beginPath(); ctx.arc(cx+sign*ex,ey,er*1.35,0,Math.PI*2); ctx.fill();
+    }
+    ctx.fillStyle='#0e0c16';
+    for(const sign of[-1,1]){
+      ctx.beginPath(); ctx.arc(cx+sign*ex,ey,2,0,Math.PI*2); ctx.fill();
+    }
+    ctx.beginPath(); ctx.arc(cx,cy+s*0.24,4,0,Math.PI*2); ctx.fill();
+  } else {
+    ctx.fillStyle='#0e0c16';
+    for(const sign of[-1,1]){
+      ctx.beginPath(); ctx.arc(cx+sign*ex,ey,er,0,Math.PI*2); ctx.fill();
+    }
+    ctx.fillStyle=PARCHMENT;
+    for(const sign of[-1,1]){
+      ctx.beginPath(); ctx.arc(cx+sign*ex-1.5,ey-er+1.5,1.5,0,Math.PI*2); ctx.fill();
+    }
+    ctx.fillStyle=ROSE;
+    for(const sign of[-1,1]){
+      ctx.beginPath(); ctx.arc(cx+sign*ex,ey+5,3,0,Math.PI*2); ctx.fill();
+    }
+    ctx.strokeStyle='#0e0c16'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(cx,cy+s*0.1,4,0,Math.PI,false); ctx.stroke();
+  }
+}
+
+function drawCursor(x,y,pulse=0){
+  const r = 13+pulse*4;
+  ctx.strokeStyle=GOLD; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.stroke();
+  for(const [dx,dy] of[[r+5,0],[-(r+5),0],[0,r+5],[0,-(r+5)]]){
+    ctx.beginPath(); ctx.moveTo(x+dx*0.35,y+dy*0.35); ctx.lineTo(x+dx,y+dy); ctx.stroke();
+  }
+  if(pulse>0.3){
+    ctx.strokeStyle=CRIMSON; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(x,y,r*2,0,Math.PI*2); ctx.stroke();
+  }
+  ctx.fillStyle=GOLD;
+  ctx.beginPath(); ctx.arc(x,y,2.5,0,Math.PI*2); ctx.fill();
+}
+
+// ── Main render function — called with a deterministic t ──────────────────
+function renderFrame(t) {
+  // Per-frame seeded prng for jitter (same seed offset per frame)
+  const frameRng = mulberry32(Math.round(t * 1000));
+  const fr = () => frameRng();
+
+  // 1. Background
+  ctx.fillStyle = BG; ctx.fillRect(0,0,W,H);
+
+  // Dot grid
+  ctx.fillStyle = '#1c1830';
+  for(let gx=22;gx<W;gx+=34) for(let gy=22;gy<H;gy+=34) ctx.fillRect(gx,gy,2,2);
+
+  // 2. Container border
+  ctx.strokeStyle=BORDER; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.roundRect(10,10,W-20,H-20,13); ctx.stroke();
+
+  // 3. Header badges
+  pill(22,20,228,48,8,SURFACE,BORDER);
+  ctx.fillStyle=SAGE; ctx.beginPath(); ctx.arc(34,34,5,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=PARCHMENT; ctx.font='bold 12px DejaVu Sans,sans-serif';
+  ctx.textBaseline='middle'; ctx.textAlign='left';
+  ctx.fillText('PICKABOO ENGINE  v3.0', 45, 34);
+
+  pill(W-256,20,W-22,48,8,SURFACE,BORDER);
+  ctx.fillStyle=GOLD; ctx.beginPath(); ctx.arc(W-244,34,5,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=PARCHMENT;
+  ctx.fillText('DARK ACADEMIA  ·  4s LOOP', W-233, 34);
+
+  // 4. Ambient roaming sprites
+  for(const s of ROAMERS){
+    const fx = s.bx + Math.cos(t*2.1+s.ph)*11;
+    const fy = s.by + Math.sin(t*3.2+s.ph)*12;
+    drawGhost(fx,fy,s.sz,s.col,'happy');
+  }
+
+  // 5. Cursor
+  const cur = cursorAt(t);
+
+  // 6. Lead sprite state machine
+  if(t < T_EXPLODE){
+    lx += (cur.x - lx) * 0.13;
+    ly += (cur.y - ly) * 0.13;
+
+    const inCountdown = t >= T_CONTACT;
+    if(inCountdown){
+      const progress  = (t - T_CONTACT) / (T_EXPLODE - T_CONTACT);
+      const timeLeft  = 4.0 * (1 - progress);
+      const jitter    = Math.pow(progress, 2) * 13;
+      const pulse     = Math.sin(t * (8 + progress*18)) * 0.5 + 0.5;
+
+      // Sprite colour escalation
+      const sc = timeLeft>2.6 ? INDIGO : timeLeft>1.2 ? AMBER : CRIMSON;
+
+      // Dashed leash
+      const leashLen = Math.hypot(cur.x-lx, cur.y-ly);
+      const steps    = Math.floor(leashLen/10);
+      for(let i=0;i<steps;i++){
+        if(i%2===0){
+          const f = i/Math.max(steps,1);
+          ctx.fillStyle=sc; ctx.globalAlpha=0.5;
+          ctx.beginPath(); ctx.arc(lx+(cur.x-lx)*f, ly+(cur.y-ly)*f, 2, 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha=1;
+        }
+      }
+
+      drawGhost(lx,ly,25,sc,'alarm',jitter,fr);
+
+      // Countdown HUD pill
+      const hw=155,hh=27,hx=lx-hw/2,hy=ly-60;
+      pill(hx,hy,hx+hw,hy+hh,7,SURFACE,sc,2);
+      ctx.fillStyle=sc; ctx.beginPath(); ctx.arc(hx+12,hy+13.5,5,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=PARCHMENT; ctx.font='bold 12px DejaVu Sans,sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(`DETONATE: ${Math.max(0,timeLeft).toFixed(2)}s`, lx, hy+13.5);
+
+      drawCursor(cur.x,cur.y,pulse);
+    } else {
+      drawGhost(lx,ly,25,INDIGO,'happy');
+      drawCursor(cur.x,cur.y);
+    }
+
+  } else {
+    // EXPLOSION PHASE
+    const expT    = t - T_EXPLODE;
+    const expEnd  = T_END - T_EXPLODE;
+    const expNorm = Math.min(1, expT / expEnd);
+
+    drawCursor(cur.x,cur.y);
+
+    // Shockwave rings
+    for(const [maxR,col] of [[360,GOLD],[225,CRIMSON],[135,INDIGO]]){
+      const ringR = expNorm * maxR;
+      const alpha = Math.max(0, 1 - ringR/maxR);
+      ctx.save(); ctx.globalAlpha=alpha*0.85;
+      ctx.strokeStyle=col; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.arc(lx,ly,ringR,0,Math.PI*2); ctx.stroke();
+      ctx.restore();
+    }
+
+    // Firework particles with trailing sparks
+    for(const p of PARTICLES){
+      const dist = p.speed * Math.pow(expNorm, 0.62);
+      const px   = lx + Math.cos(p.angle)*dist;
+      const py   = ly + Math.sin(p.angle)*dist + expNorm*40;
+      const fade = Math.max(0, 1 - expNorm*0.88);
+      if(fade < 0.04) continue;
+      const ps   = Math.max(1.5, p.size*(1 - expNorm*0.65));
+
+      // Trailing dots
+      for(let tr=0;tr<p.trail;tr++){
+        const f   = tr / p.trail;
+        const td  = dist*(1 - f*0.38);
+        const tpx = lx + Math.cos(p.angle)*td;
+        const tpy = ly + Math.sin(p.angle)*td + expNorm*40*(1-f*0.4);
+        const ta  = fade * 0.55 * (1-f);
+        if(ta < 0.04) continue;
+        ctx.save(); ctx.globalAlpha=ta; ctx.fillStyle=p.color;
+        const tr_r = Math.max(0.5, ps*(0.55-f*0.5));
+        ctx.beginPath(); ctx.arc(tpx,tpy,tr_r,0,Math.PI*2); ctx.fill();
+        ctx.restore();
+      }
+
+      // Head
+      if(p.isStar) drawStar(px,py,ps,p.color,fade);
+      else {
+        ctx.save(); ctx.globalAlpha=fade; ctx.fillStyle=p.color;
+        ctx.beginPath(); ctx.arc(px,py,ps*0.7,0,Math.PI*2); ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // BANG! text
+    if(expNorm < 0.65){
+      const ba = (1 - expNorm/0.65);
+      ctx.save(); ctx.globalAlpha=ba;
+      pill(lx-168,ly-34,lx+168,ly+32,10,SURFACE+Math.round(ba*220).toString(16).padStart(2,'0'),GOLD,3);
+      ctx.fillStyle=GOLD; ctx.font=`bold 30px DejaVu Sans,sans-serif`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.shadowColor=GOLD; ctx.shadowBlur=12;
+      ctx.fillText('💥  PICKABOO  BANG!  💥', lx, ly);
+      ctx.restore();
+    }
+
+    // Sparkle crown (very early frames of explosion)
+    if(expNorm < 0.28){
+      for(let a=0;a<360;a+=40){
+        const rr  = 14 + expNorm*32;
+        const sx  = lx + rr*Math.cos(a*Math.PI/180);
+        const sy  = ly + rr*Math.sin(a*Math.PI/180);
+        ctx.fillStyle=GOLD; ctx.globalAlpha=1-expNorm/0.28;
+        ctx.beginPath(); ctx.arc(sx,sy,3,0,Math.PI*2); ctx.fill();
+        ctx.globalAlpha=1;
+      }
+    }
+
+    // Respawn
+    if(expNorm > 0.58){
+      const rf = (expNorm-0.58)/0.42;
+      lx += (W*0.28 - lx)*0.10;
+      ly += (H*0.52 - ly)*0.10;
+      drawGhost(lx,ly,25*rf,INDIGO,'happy');
+    }
+  }
+}
+
+// ── Expose to Playwright ──────────────────────────────────────────────────
+window.__renderFrame = function(t) {
+  // Reset lead sprite for deterministic per-frame rendering
+  // We integrate from t=0 each call (fast, 6s at 25fps = 150 ticks)
+  lx = W * 0.28; ly = H * 0.52;
+  let tick = 0;
+  const totalTicks = Math.round(t * FPS);
+  while(tick < totalTicks){
+    const tt = tick / FPS;
+    const cur = cursorAt(tt);
+    if(tt < T_EXPLODE){
+      lx += (cur.x - lx) * 0.13;
+      ly += (cur.y - ly) * 0.13;
+    } else if(tt > T_END * 0.58/1.0) {
+      lx += (W*0.28 - lx)*0.10;
+      ly += (H*0.52 - ly)*0.10;
+    }
+    tick++;
+  }
+  renderFrame(t);
+  return canvas.toDataURL('image/png');
+};
+</script>
+</body>
+</html>

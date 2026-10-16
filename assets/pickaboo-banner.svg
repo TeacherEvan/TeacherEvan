@@ -1,0 +1,179 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 240" width="100%" height="240" style="background:#0e0c16; border-radius:12px; overflow:hidden; font-family:'Segoe UI',system-ui,-apple-system,sans-serif;">
+  <defs>
+    <!-- Background grid pattern -->
+    <pattern id="dotGrid" width="30" height="30" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#1f1a35" />
+    </pattern>
+
+    <!-- Linear gradients -->
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f5e6b4" />
+      <stop offset="50%" stop-color="#d4af37" />
+      <stop offset="100%" stop-color="#997b1e" />
+    </linearGradient>
+
+    <linearGradient id="ghostGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" />
+      <stop offset="50%" stop-color="#6d28d9" />
+      <stop offset="100%" stop-color="#4c1d95" />
+    </linearGradient>
+
+    <linearGradient id="alertGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f87171" />
+      <stop offset="50%" stop-color="#b91c1c" />
+      <stop offset="100%" stop-color="#7f1d1d" />
+    </linearGradient>
+
+    <!-- Glow Filter -->
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <filter id="goldGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3.5" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <style>
+    @keyframes pulseReticle {
+      0%, 100% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(1.15); opacity: 0.5; }
+    }
+    @keyframes hudDetonate {
+      0%, 50% { opacity: 0; }
+      55%, 85% { opacity: 1; }
+      90%, 100% { opacity: 0; }
+    }
+    @keyframes blastWave {
+      0%, 82% { r: 0; opacity: 0; }
+      85% { r: 10px; opacity: 1; }
+      98% { r: 180px; opacity: 0; }
+      100% { r: 0; opacity: 0; }
+    }
+    @keyframes particleBurst {
+      0%, 83% { transform: scale(0); opacity: 0; }
+      85% { transform: scale(1); opacity: 1; }
+      98% { transform: scale(2.2); opacity: 0; }
+      100% { transform: scale(0); opacity: 0; }
+    }
+    @keyframes ghostLifecycle {
+      0% { opacity: 1; transform: scale(1); }
+      83% { opacity: 1; transform: scale(1.1); }
+      85% { opacity: 0; transform: scale(1.4); }
+      96% { opacity: 0; transform: scale(0.2); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    .reticle { animation: pulseReticle 2.2s infinite ease-in-out; transform-origin: 580px 120px; }
+    .hud-text { animation: hudDetonate 6s infinite; }
+    .blast { animation: blastWave 6s infinite ease-out; }
+    .burst-group { animation: particleBurst 6s infinite cubic-bezier(0.1, 0.8, 0.3, 1); transform-origin: 580px 120px; }
+    .ghost-body { animation: ghostLifecycle 6s infinite; transform-origin: 580px 120px; }
+  </style>
+
+  <!-- Dot Grid & Outer Card Border -->
+  <rect x="0" y="0" width="900" height="240" fill="url(#dotGrid)" />
+  <rect x="8" y="8" width="884" height="224" rx="10" fill="none" stroke="#3e3458" stroke-width="1.5" />
+
+  <!-- Top Badges -->
+  <g transform="translate(24, 20)">
+    <rect width="190" height="28" rx="6" fill="#1a1630" stroke="#3e3458" stroke-width="1" />
+    <circle cx="14" cy="14" r="4.5" fill="#2d6a4f" />
+    <text x="26" y="18" fill="#f5e6b4" font-size="11" font-weight="700" letter-spacing="1">PICKABOO ENGINE v4.0</text>
+  </g>
+
+  <g transform="translate(686, 20)">
+    <rect width="190" height="28" rx="6" fill="#1a1630" stroke="#3e3458" stroke-width="1" />
+    <circle cx="14" cy="14" r="4.5" fill="#d4af37" />
+    <text x="26" y="18" fill="#f5e6b4" font-size="11" font-weight="700" letter-spacing="1">DARK ACADEMIA · LIVE</text>
+  </g>
+
+  <!-- Ambient Roamer Ghost Left -->
+  <g transform="translate(140, 140)">
+    <path d="M -15 0 A 15 15 0 0 1 15 0 L 15 12 Q 10 16 5 12 Q 0 16 -5 12 Q -10 16 -15 12 Z" fill="#2d6a4f" opacity="0.85" />
+    <circle cx="0" cy="-18" r="3" fill="#d4af37" />
+    <line x1="0" y1="-15" x2="0" y2="-18" stroke="#f5e6b4" stroke-width="1.5" />
+    <circle cx="-5" cy="-2" r="2.5" fill="#0e0c16" />
+    <circle cx="5" cy="-2" r="2.5" fill="#0e0c16" />
+  </g>
+
+  <!-- Ambient Roamer Ghost Right -->
+  <g transform="translate(760, 150)">
+    <path d="M -14 0 A 14 14 0 0 1 14 0 L 14 10 Q 9 14 5 10 Q 0 14 -5 10 Q -9 14 -14 10 Z" fill="#b91c1c" opacity="0.85" />
+    <circle cx="0" cy="-16" r="2.8" fill="#d4af37" />
+    <line x1="0" y1="-14" x2="0" y2="-16" stroke="#f5e6b4" stroke-width="1.5" />
+    <circle cx="-4.5" cy="-2" r="2.2" fill="#0e0c16" />
+    <circle cx="4.5" cy="-2" r="2.2" fill="#0e0c16" />
+  </g>
+
+  <!-- Center Guidance Banner -->
+  <g transform="translate(260, 20)">
+    <rect width="380" height="28" rx="6" fill="#141026" stroke="#d4af37" stroke-width="1" opacity="0.8" />
+    <text x="190" y="18" fill="#d4af37" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="0.5">CLICK BANNER TO PLAY LIVE SOUND &amp; DETONATION GAME</text>
+  </g>
+
+  <!-- Main Animated Shockwaves -->
+  <circle class="blast" cx="580" cy="120" r="0" fill="none" stroke="#d4af37" stroke-width="3" opacity="0" filter="url(#goldGlow)" />
+  <circle class="blast" cx="580" cy="120" r="0" fill="none" stroke="#b91c1c" stroke-width="2.5" opacity="0" style="animation-delay: 0.08s;" />
+  <circle class="blast" cx="580" cy="120" r="0" fill="none" stroke="#6d28d9" stroke-width="2" opacity="0" style="animation-delay: 0.16s;" />
+
+  <!-- Particle Explosion Sparks -->
+  <g class="burst-group">
+    <!-- Radially exploded particle sparks -->
+    <circle cx="580" cy="60" r="4" fill="#d4af37" />
+    <circle cx="630" cy="80" r="5" fill="#f5e6b4" />
+    <circle cx="650" cy="120" r="4.5" fill="#b91c1c" />
+    <circle cx="630" cy="160" r="4" fill="#ff4b7a" />
+    <circle cx="580" cy="180" r="5" fill="#6d28d9" />
+    <circle cx="530" cy="160" r="4" fill="#3b82f6" />
+    <circle cx="510" cy="120" r="4.5" fill="#2d6a4f" />
+    <circle cx="530" cy="80" r="5" fill="#f97316" />
+    <!-- Secondary spark rings -->
+    <polygon points="580,30 584,40 595,40 586,47 589,57 580,51 571,57 574,47 565,40 576,40" fill="#d4af37" />
+    <polygon points="660,60 663,68 672,68 665,74 667,82 660,77 653,82 655,74 648,68 657,68" fill="#ffd14b" />
+    <polygon points="670,160 673,168 682,168 675,174 677,182 670,177 663,182 665,174 658,168 667,168" fill="#f5e6b4" />
+  </g>
+
+  <!-- Interactive Crosshair Reticle -->
+  <g class="reticle" transform="translate(580, 120)">
+    <circle r="16" fill="none" stroke="#d4af37" stroke-width="1.5" />
+    <circle r="3" fill="#d4af37" />
+    <line x1="-22" y1="0" x2="-8" y2="0" stroke="#d4af37" stroke-width="1.5" />
+    <line x1="8" y1="0" x2="22" y2="0" stroke="#d4af37" stroke-width="1.5" />
+    <line x1="0" y1="-22" x2="0" y2="-8" stroke="#d4af37" stroke-width="1.5" />
+    <line x1="0" y1="8" x2="0" y2="22" stroke="#d4af37" stroke-width="1.5" />
+  </g>
+
+  <!-- Main PickaBoo Sprite -->
+  <g class="ghost-body" transform="translate(580, 120)">
+    <!-- Glow aura -->
+    <circle cx="0" cy="0" r="32" fill="#6d28d9" opacity="0.3" filter="url(#glow)" />
+    <!-- Body -->
+    <path d="M -22 0 A 22 22 0 0 1 22 0 L 22 18 Q 15 24 7 18 Q 0 24 -7 18 Q -15 24 -22 18 Z" fill="url(#ghostGrad)" filter="url(#goldGlow)" />
+    <!-- Antenna -->
+    <line x1="0" y1="-22" x2="0" y2="-32" stroke="#f5e6b4" stroke-width="2" />
+    <circle cx="0" cy="-35" r="4.5" fill="#d4af37" stroke="#f5e6b4" stroke-width="1" />
+    <!-- Face -->
+    <circle cx="-8" cy="-3" r="3.5" fill="#0e0c16" />
+    <circle cx="8" cy="-3" r="3.5" fill="#0e0c16" />
+    <circle cx="-9" cy="-4.5" r="1.2" fill="#f5e6b4" />
+    <circle cx="7" cy="-4.5" r="1.2" fill="#f5e6b4" />
+    <ellipse cx="-8" cy="4" rx="3.5" ry="2" fill="#b03060" />
+    <ellipse cx="8" cy="4" rx="3.5" ry="2" fill="#b03060" />
+    <path d="M -4 5 Q 0 9 4 5" fill="none" stroke="#0e0c16" stroke-width="1.8" />
+  </g>
+
+  <!-- Detonation Countdown HUD Pill -->
+  <g class="hud-text" transform="translate(580, 52)">
+    <rect x="-75" y="-14" width="150" height="26" rx="6" fill="#0e0c16" stroke="#b91c1c" stroke-width="2" />
+    <circle cx="-60" cy="-1" r="4" fill="#b91c1c" />
+    <text x="2" y="3" fill="#f5e6b4" font-size="11" font-weight="700" text-anchor="middle" font-family="monospace">💥 DETONATE: 4.00s</text>
+  </g>
+
+  <!-- Big Comic BANG on Burst -->
+  <g class="burst-group" transform="translate(580, 115)">
+    <rect x="-110" y="-18" width="220" height="36" rx="8" fill="#0e0c16" stroke="#d4af37" stroke-width="2.5" />
+    <text x="0" y="7" fill="#d4af37" font-size="16" font-weight="900" text-anchor="middle" letter-spacing="1">💥 PICKABOO BANG! 💥</text>
+  </g>
+</svg>
