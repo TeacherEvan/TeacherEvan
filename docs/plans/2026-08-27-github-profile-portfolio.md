@@ -3,7 +3,7 @@
 **Date:** 2026-08-27  
 **Feature Name:** `github-profile-portfolio`  
 **Target Output File:** `README.md` (and accompanying asset generator / GitHub Pages interactive companion in `assets/` & `scripts/`)  
-**Specification Reference:** [`docs/Profile as portfolio.txt`](file:///home/ewaldt/Documents/VS/GITHUB%20FRONTPAGE/docs/Profile%20as%20portfolio.txt)
+**Specification Reference:** [`docs/Profile as portfolio.txt`](../Profile%20as%20portfolio.txt)
 
 ---
 
@@ -44,9 +44,9 @@ Because GitHub profiles are rendered in GitHub's sanitized Markdown environment 
 | Milestone | Deliverable | Scope / Verification Gate | Feature Flag / Isolation |
 | :--- | :--- | :--- | :--- |
 | **M1: Core Profile Structure** | `README.md` layout, Hero Header, Status Badges, `const ali: Developer` code block, Tech Stacks | Render test on GitHub dark/light mode; check all badge links and contrast ratios | Static template commit |
-| **M2: PickaBoo Sprite Animation** | `assets/pickaboo-loop.gif`, `assets/pickaboo-banner.svg`, generator script `scripts/generate-pickaboo.js` | 60fps particle loop, 4s explosion sequence, crisp rendering under 2MB asset limit | Local visual validation + Camo proxy test |
-| **M3: Dynamic Stats & Actions** | Real-time GitHub Stats, Streak, Top Languages cards, GitHub Actions auto-updater `.github/workflows/update-readme.yml` | Action runs cleanly in CI; metrics cards load with matching dark theme | CI automated test run |
-| **M4: Project Showcase & Interactive Companion** | Featured project cards, GitHub Pages interactive mini-game (`docs/index.html` or `index.html`), social footer | Live URL deployed on GitHub Pages; click-through from README banner works | GitHub Pages deployment |
+| **M2: PickaBoo Sprite Animation** | `assets/pickaboo-loop.gif`, `assets/pickaboo-banner.svg`, generator `scripts/capture_banner.js` + `scripts/banner.html` | 60fps particle loop, 4s explosion sequence, crisp rendering under 2MB asset limit | Local visual validation + Camo proxy test |
+| **M3: Dynamic Stats & Actions** | Third-party stats cards were **dropped** (rate-limit flakiness, commit `9389f6e`); replaced by a self-hosted asset pipeline and a local regression suite | CI installs locked deps, runs the test suite, and regenerates the banner deterministically | `npm test` green on every push |
+| **M4: Project Showcase & Interactive Companion** | Featured project cards, GitHub Pages interactive mini-game (`docs/index.html`), social footer | Live URL deployed on GitHub Pages; click-through from README banner works | GitHub Pages deployment |
 
 ---
 
@@ -198,54 +198,64 @@ Because GitHub profiles are rendered in GitHub's sanitized Markdown environment 
 
 ## 6. Bite-Sized Implementation Tasks (TDD & Step-by-Step)
 
+> **Status:** all phases below are implemented and verified. The v4.1 rework replaced the
+> frame-based physics with a fixed-timestep simulation, retired the duplicate engine copy and
+> the legacy Python banner generator, and added a headless-Chromium regression suite.
+
 ### Phase 1: Directory Setup & Static Profile Scaffolding
-- [ ] **Task 1.1: Project Directory Structure**
-  - **Files:** Create `assets/`, `scripts/`, `public/`, `.github/workflows/`
+- [x] **Task 1.1: Project Directory Structure**
+  - **Files:** `assets/`, `scripts/`, `docs/`, `.github/workflows/`
   - **Verification:** Run `ls -la` to confirm directory hierarchy.
-- [ ] **Task 1.2: Base `README.md` Profile File**
+- [x] **Task 1.2: Base `README.md` Profile File**
   - **Files:** `README.md`
-  - **Content:** Header, Status Badges (`FULL STACK`, `SEEKING`, `REMOTE`, `MENTORING`, `ACTIVE`), `const ali: Developer` TypeScript code block, About section, Tech stack icons, Project table, Contact footer.
-  - **Verification:** Markdown linter passes, badge URLs render properly with valid Shields.io styling (`flat-square` / `for-the-badge`).
+  - **Content:** Header, Status Badges (`FULL STACK`, `OPEN TO WORK`, `REMOTE FRIENDLY`, `MENTORING ACTIVE`), `const PickaBoo: Creator` TypeScript code block, About section, Tech stack icons, Project table, Contact footer.
+  - **Verification:** `tests/repo.test.js` asserts every local README link resolves.
 
 ### Phase 2: PickaBoo Sprite Animation Engine & Assets
-- [ ] **Task 2.1: Particle & Sprite Math Simulation Script**
-  - **Files:** `scripts/generate-pickaboo.js` (or pure Node.js Canvas / SVG generator)
+- [x] **Task 2.1: Particle & Sprite Math Simulation Script**
+  - **Files:** `scripts/banner.html` + `scripts/capture_banner.js` (deterministic `__renderFrame(t)` Canvas renderer)
   - **Logic:**
     - Spawn cute pixel/geometric "PickaBoo" sprite.
     - Path generator simulating cursor movement across screen.
     - Proximity detection triggers 4.00s countdown timer state (visualized as glowing/shaking sprite).
-    - Explosion generator: 50+ colorful particles with radial velocity, gravity, and alpha decay.
-  - **Verification:** Script outputs clean frames or animated GIF.
-- [ ] **Task 2.2: Export Optimized Looping Asset**
+    - Explosion generator: 220 colorful particles with radial velocity, gravity, and alpha decay.
+  - **Verification:** `npm run build:gif` re-encodes and inspects the artifact (dimensions, frame count, loop flag).
+- [x] **Task 2.2: Export Optimized Looping Asset**
   - **Files:** `assets/pickaboo-loop.gif` & `assets/pickaboo-banner.svg`
-  - **Verification:** File size is `< 1.8MB`, frame rate is smooth (25-30fps), 4-second explosion loop is seamless and colorful.
+  - **Verification:** `tests/repo.test.js` asserts 800px width, >=100 frames, infinite loop and <5MB (Camo limit).
 
 ### Phase 3: Interactive Companion Web App (GitHub Pages)
-- [ ] **Task 3.1: Interactive Canvas Mini-Game**
-  - **Files:** `public/index.html` (or `index.html`)
-  - **Features:** Real mouse tracking on desktop, touch tracking on mobile, sprite swarm wandering and chasing cursor, 4-second self-destruct countdown timer on contact, particle explosion audio/visual effects, restart button.
-  - **Verification:** Open locally in browser; test hover, collision, 4s countdown, and explosion.
+- [x] **Task 3.1: Interactive Canvas Mini-Game**
+  - **Files:** `docs/index.html` - the single engine copy (the duplicated `public/index.html` was removed)
+  - **Features:** Real mouse tracking on desktop, touch tracking on mobile, sprite swarm wandering and chasing cursor, 4-second self-destruct countdown timer on contact, particle explosion audio/visual effects, spawn/detonate controls, educator sandbox mode.
+  - **Verification:** `tests/engine.test.js` drives real Chromium input and asserts countdown arming, detonation counting, finite coordinates, pointer teardown, frame-rate independence and the particle budget.
 
 ### Phase 4: Dynamic Metrics, CI Automation & Final Review
-- [ ] **Task 4.1: Dynamic GitHub Stats Cards Integration**
-  - **Files:** `README.md`
-  - **Integration:** Embed GitHub Readme Stats (with custom color palette: Tokyonight/Catppuccin), Top Languages card, Streak Stats.
-  - **Verification:** Cards render live metrics for the user handle.
-- [ ] **Task 4.2: Automated Profile Refresh Workflow**
+- [x] **Task 4.1: Dynamic GitHub Stats Cards Integration** - *superseded*
+  - Third-party stats cards (`github-readme-stats`, streak stats) were removed in commit `9389f6e` after repeated rate-limit failures. The profile now relies on first-party assets only, so nothing can break at render time.
+- [x] **Task 4.2: Automated Profile Refresh Workflow**
   - **Files:** `.github/workflows/profile-update.yml`
-  - **Schedule:** Runs daily at midnight UTC to verify links, rebuild assets if needed, and update timestamps.
-  - **Verification:** GitHub Actions syntax validation passes.
+  - **Behaviour:** installs locked dependencies (`npm ci`), installs Chromium, verifies assets, runs `npm test`, and - on manual dispatch - regenerates the banner with the canonical renderer before committing.
+  - **Verification:** GitHub Actions syntax validation passes; `tests/repo.test.js` asserts the workflow wiring.
 
 ---
 
 ## 7. Zero-Context Engineer Instructions (How to Execute)
 
 1. **Prerequisites:** Node.js 18+ installed.
-2. **Execute Asset Generation:**
+2. **Install & verify:**
    ```bash
-   node scripts/generate-pickaboo.js
+   npm ci
+   npx playwright install chromium
+   npm test
    ```
-3. **Verify Profile Markdown:**
-   - Open `README.md` in preview or push to a GitHub repository named after your username (e.g., `username/username`).
-4. **Deploy Companion App (Optional):**
-   - Enable GitHub Pages in repository settings -> Source: Deploy from branch (`main` / `root` or `/docs`).
+3. **Regenerate the banner asset:**
+   ```bash
+   npm run build:gif
+   ```
+4. **Serve the live engine locally:**
+   ```bash
+   npm run dev      # http://localhost:3000
+   ```
+5. **Deploy the Companion App:**
+   - Enable GitHub Pages in repository settings -> Source: Deploy from branch (`main` / `/docs`).

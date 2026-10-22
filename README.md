@@ -1,8 +1,8 @@
 <div align="center">
 
 <!-- PickaBoo Interactive Banner — click to launch live game -->
-<a href="https://TeacherEvan.github.io/TeacherEvan/" target="_blank" title="Click to play PickaBoo v4 with spatial sound, chain reactions & physics sandbox!">
-  <img src="assets/pickaboo-loop.gif" alt="PickaBoo Interactive Engine v4.0" width="100%" />
+<a href="https://TeacherEvan.github.io/TeacherEvan/" target="_blank" title="Click to play PickaBoo v4.1 with spatial sound, chain reactions & physics sandbox!">
+  <img src="assets/pickaboo-loop.gif" alt="PickaBoo Interactive Engine v4.1" width="100%" />
 </a>
 
 <br/><br/>
@@ -24,7 +24,7 @@
 
 <p>
   <a href="https://TeacherEvan.github.io/TeacherEvan/">
-    <img src="https://img.shields.io/badge/🎮%20PLAY%20LIVE%20GAME-PickaBoo%20Engine%20v4.0-d4af37?style=for-the-badge" alt="Live Game" />
+    <img src="https://img.shields.io/badge/🎮%20PLAY%20LIVE%20GAME-PickaBoo%20Engine%20v4.1-d4af37?style=for-the-badge" alt="Live Game" />
   </a>
 </p>
 
@@ -86,15 +86,28 @@ const PickaBoo: Creator = {
 
 ---
 
-
-
 ### 🚀 Featured Work
 
 | Project | Description | Stack | Links |
 | :--- | :--- | :--- | :--- |
-| 👾 **PickaBoo Engine v4.0** | Interactive sprite swarm with spatial Web Audio, camera trauma shake, cascading chain-reaction explosions, and physics sandbox mode | `Canvas` `Web Audio` `Vector Math` | [▶ Live Game](https://TeacherEvan.github.io/TeacherEvan/) · [Source](docs/index.html) |
-| ⚡ **Distributed Core** | Event-driven microservices architecture: sub-ms caching, automated failover, and K8s orchestration | `Go` `FastAPI` `Redis` `K8s` | [Architecture Specs](docs/plans/2026-08-27-github-profile-portfolio.md) |
-| 🎓 **Physics & Coding Sandbox** | Educational interactive canvas demonstrating Craig Reynolds' flocking boids, velocity vectors, and kinetic impulse | `HTML5` `Canvas 2D` `ES6+` | [Launch](https://TeacherEvan.github.io/TeacherEvan/) |
+| 👾 **PickaBoo Engine v4.1** | Interactive sprite swarm with spatial Web Audio, camera trauma shake, cascading chain-reaction explosions, and a fixed-timestep physics sandbox | `Canvas` `Web Audio` `Vector Math` | [▶ Live Game](https://TeacherEvan.github.io/TeacherEvan/) · [Source](docs/index.html) |
+| 🧪 **Engine Test Harness** | Headless-Chromium regression suite: frame-rate-independent physics, particle budget, pointer lifecycle, NaN guards and repo integrity | `node:test` `Playwright` | [Tests](tests/) |
+| 🎞️ **Banner Asset Pipeline** | Deterministic 150-frame Canvas capture compiled to a palette-optimised looping GIF, plus the animated vector banner | `Node` `Playwright` `FFmpeg` | [Pipeline](scripts/capture_banner.js) · [Vector Banner](assets/pickaboo-banner.svg) |
+
+---
+
+### 📐 Engineering Notes
+
+<p>
+  <img src="assets/pickaboo-banner.svg" alt="PickaBoo Engine v4.1 vector banner" width="100%" />
+</p>
+
+- **Deterministic simulation** — fixed 60 Hz timestep with an accumulator, so a 120 Hz monitor plays the exact same game as a 30 Hz one.
+- **Bounded cost** — global particle ceiling, clamped velocities and exponential damping keep the frame budget flat under chain reactions.
+- **Accessible by default** — keyboard-reachable controls, `aria-pressed` toggles, live reduced-motion support and pinch-zoom left enabled.
+- **One source of truth** — a single engine file, a single banner generator, and a CI pipeline that fails the build if any of it drifts.
+
+[Full architecture notes →](docs/ARCHITECTURE.md)
 
 ---
 
@@ -113,6 +126,6 @@ const PickaBoo: Creator = {
 </a>
 
 <br/><br/>
-<sub>⚡ <strong>PickaBoo Engine v4.0</strong> — Dark Academia Edition · Engineered by <a href="https://github.com/TeacherEvan">TeacherEvan</a></sub>
+<sub>⚡ <strong>PickaBoo Engine v4.1</strong> — Dark Academia Edition · Engineered by <a href="https://github.com/TeacherEvan">TeacherEvan</a></sub>
 
 </div>

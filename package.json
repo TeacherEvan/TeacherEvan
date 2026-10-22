@@ -1,14 +1,16 @@
 {
   "name": "teacherevan-profile",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "description": "TeacherEvan GitHub Profile & PickaBoo Engine Creative Physics Sandbox",
   "main": "docs/index.html",
   "scripts": {
     "dev": "python3 -m http.server 3000 -d docs",
     "serve": "npx serve docs",
-    "build:gif": "python3 scripts/generate_pickaboo_loop.py",
-    "build:banner": "node scripts/capture_banner.js",
-    "test": "node -e \"console.log('✓ Smoke test passed: assets and docs verified.')\""
+    "build:gif": "node scripts/capture_banner.js",
+    "test": "node --test --test-timeout=120000 tests/"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "keywords": [
     "github-profile",
