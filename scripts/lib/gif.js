@@ -15,9 +15,16 @@ function inspectGif(file) {
   const width  = buf.readUInt16LE(6);
   const height = buf.readUInt16LE(8);
   let frames = 0, loops = false;
-  for (let i = 0; i < buf.length - 1; i++) {
-    if (buf[i] === 0x21 && buf[i + 1] === 0xf9) frames++;      // Graphic Control Extension
-    if (buf[i] === 0x21 && buf[i + 1] === 0xff) loops = true;  // Application Extension (NETSCAPE loop)
+  for (let i = 13; i < buf.length - 14; i++) {
+    // Graphic Control Extension: 0x21 0xF9, block size 0x04, and terminator 0x00 at offset +7
+    if (buf[i] === 0x21 && buf[i + 1] === 0xf9 && buf[i + 2] === 0x04 && buf[i + 7] === 0x00) {
+      frames++;
+    }
+    // NETSCAPE2.0 or ANIMEXTS1.0 Application Extension
+    if (buf[i] === 0x21 && buf[i + 1] === 0xff && buf[i + 2] === 0x0b) {
+      const appId = buf.toString('ascii', i + 3, i + 14);
+      if (appId === 'NETSCAPE2.0' || appId === 'ANIMEXTS1.0') loops = true;
+    }
   }
   return { width, height, frames, loops, bytes: buf.length };
 }

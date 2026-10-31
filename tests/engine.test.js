@@ -10,9 +10,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const { chromium } = require('playwright');
 
-const ENGINE_URL = 'file://' + path.resolve(__dirname, '..', 'docs', 'index.html');
+const ENGINE_URL = pathToFileURL(path.resolve(__dirname, '..', 'docs', 'index.html')).href;
 
 // Deterministic PRNG so two runs at different refresh rates start identical
 const SEED_SCRIPT = `(() => {
@@ -29,45 +30,63 @@ const rafOverride = ms => `(() => {
   window.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()), ${ms});
 })()`;
 
-async function launch() {
+let browser = null;
+
+test.before(async () => {
   try {
-    return await chromium.launch({ args: ['--no-sandbox'] });
-  } catch (_) {
-    return null;
+    browser = await chromium.launch({ args: ['--no-sandbox'] });
+  } catch (err) {
+    if (process.env.CI) {
+      assert.fail(`Chromium is not installed in CI: ${err.message}`);
+    }
+    browser = null;
   }
-}
+});
+
+test.after(async () => {
+  if (browser) {
+    await browser.close().catch(() => {});
+    browser = null;
+  }
+});
 
 async function openEngine(browser, { initScript } = {}) {
-  const page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
+  const context = await browser.newContext({ viewport: { width: 1200, height: 800 } });
+  const page = await context.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
   page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
   if (initScript) await page.addInitScript(initScript);
   await page.goto(ENGINE_URL);
   await page.waitForTimeout(400);
-  return { page, errors };
+  return { context, page, errors };
 }
 
 test('engine boots clean and exposes its state', async t => {
-  const browser = await launch();
-  if (!browser) { t.skip('Chromium is not installed — run: npx playwright install chromium'); return; }
+  if (!browser) {
+    if (process.env.CI) assert.fail('Chromium is not installed in CI');
+    t.skip('Chromium is not installed — run: npx playwright install chromium');
+    return;
+  }
+  const { context, page, errors } = await openEngine(browser, { initScript: SEED_SCRIPT });
   try {
-    const { page, errors } = await openEngine(browser, { initScript: SEED_SCRIPT });
     const snap = await page.evaluate(() => window.__pickaboo.snapshot());
     assert.equal(snap.version, '4.1');
     assert.ok(snap.sprites > 0, 'engine should spawn sprites on load');
     assert.deepEqual(errors, [], `engine produced errors: ${errors.join(' | ')}`);
   } finally {
-    await browser.close();
+    await context.close();
   }
 });
 
 test('hovering a sprite arms the countdown and detonation is counted', async t => {
-  const browser = await launch();
-  if (!browser) { t.skip('Chromium is not installed'); return; }
+  if (!browser) {
+    if (process.env.CI) assert.fail('Chromium is not installed in CI');
+    t.skip('Chromium is not installed');
+    return;
+  }
+  const { context, page, errors } = await openEngine(browser, { initScript: SEED_SCRIPT });
   try {
-    const { page, errors } = await openEngine(browser, { initScript: SEED_SCRIPT });
-
     // Park the pointer directly on a sprite
     const target = await page.evaluate(() => ({ x: sprites[0].x, y: sprites[0].y }));
     await page.mouse.move(target.x, target.y);
@@ -83,16 +102,18 @@ test('hovering a sprite arms the countdown and detonation is counted', async t =
     assert.ok(snap.booms > 0, 'detonations should be counted');
     assert.deepEqual(errors, []);
   } finally {
-    await browser.close();
+    await context.close();
   }
 });
 
 test('sprite coordinates stay finite under adversarial pointer overlap', async t => {
-  const browser = await launch();
-  if (!browser) { t.skip('Chromium is not installed'); return; }
+  if (!browser) {
+    if (process.env.CI) assert.fail('Chromium is not installed in CI');
+    t.skip('Chromium is not installed');
+    return;
+  }
+  const { context, page, errors } = await openEngine(browser, { initScript: SEED_SCRIPT });
   try {
-    const { page, errors } = await openEngine(browser, { initScript: SEED_SCRIPT });
-
     // Slam the pointer onto every sprite, then jitter it across the canvas
     for (let i = 0; i < 12; i++) {
       const pos = await page.evaluate((idx) => {
@@ -109,16 +130,18 @@ test('sprite coordinates stay finite under adversarial pointer overlap', async t
     assert.deepEqual(bad, [], 'no sprite may hold a NaN/Infinite coordinate');
     assert.deepEqual(errors, []);
   } finally {
-    await browser.close();
+    await context.close();
   }
 });
 
 test('the pointer is dropped when it leaves the viewport', async t => {
-  const browser = await launch();
-  if (!browser) { t.skip('Chromium is not installed'); return; }
+  if (!browser) {
+    if (process.env.CI) assert.fail('Chromium is not installed in CI');
+    t.skip('Chromium is not installed');
+    return;
+  }
+  const { context, page } = await openEngine(browser, { initScript: SEED_SCRIPT });
   try {
-    const { page } = await openEngine(browser, { initScript: SEED_SCRIPT });
-
     await page.mouse.move(400, 300);
     await page.waitForTimeout(150);
     assert.equal(await page.evaluate(() => pointers.size), 1, 'mouse pointer should be tracked');
@@ -144,21 +167,21 @@ test('the pointer is dropped when it leaves the viewport', async t => {
     assert.equal(await page.evaluate(() => pointers.size), 0,
       'leaving the window must clear the reticle');
   } finally {
-    await browser.close();
+    await context.close();
   }
 });
 
 test('simulation speed is independent of the display refresh rate', async t => {
-  const browser = await launch();
-  if (!browser) { t.skip('Chromium is not installed'); return; }
-  try {
-    // Time-to-contact is the metric that matters: a frame-coupled simulation
-    // closes the gap to the cursor at a rate proportional to the refresh rate,
-    // so the same choreography must take the same wall-clock time everywhere.
-    const timeToContact = async (fps) => {
-      const { page } = await openEngine(browser, {
-        initScript: `${SEED_SCRIPT}\n${rafOverride(1000 / fps)}`
-      });
+  if (!browser) {
+    if (process.env.CI) assert.fail('Chromium is not installed in CI');
+    t.skip('Chromium is not installed');
+    return;
+  }
+  const timeToContact = async (fps) => {
+    const { context, page } = await openEngine(browser, {
+      initScript: `${SEED_SCRIPT}\n${rafOverride(1000 / fps)}`
+    });
+    try {
       await page.evaluate(() => {
         // Isolate one sprite 300px from the cursor; park the rest in corners
         const pointer = { x: 600, y: 400 };
@@ -175,30 +198,31 @@ test('simulation speed is independent of the display refresh rate', async t => {
         const state = await page.evaluate(() => sprites[0].state);
         if (state === 'countdown') elapsed = Date.now() - started;
       }
-      await page.close();
       return elapsed;
-    };
+    } finally {
+      await context.close();
+    }
+  };
 
-    const slow = await timeToContact(30);
-    const fast = await timeToContact(120);
-    console.log(`      ↳ time-to-contact: ${slow}ms @30fps vs ${fast}ms @120fps`);
+  const slow = await timeToContact(30);
+  const fast = await timeToContact(120);
+  console.log(`      ↳ time-to-contact: ${slow}ms @30fps vs ${fast}ms @120fps`);
 
-    assert.ok(slow !== null && fast !== null, 'the sprite never reached the cursor');
-    const ratio = slow / fast;
-    assert.ok(ratio > 0.7 && ratio < 1.43,
-      `approach speed must not depend on refresh rate, got ${slow}ms @30fps vs ${fast}ms @120fps ` +
-      `(ratio ${ratio.toFixed(2)})`);
-  } finally {
-    await browser.close();
-  }
+  assert.ok(slow !== null && fast !== null, 'the sprite never reached the cursor');
+  const ratio = slow / fast;
+  assert.ok(ratio > 0.7 && ratio < 1.43,
+    `approach speed must not depend on refresh rate, got ${slow}ms @30fps vs ${fast}ms @120fps ` +
+    `(ratio ${ratio.toFixed(2)})`);
 });
 
 test('the particle budget is enforced under sustained chain detonations', async t => {
-  const browser = await launch();
-  if (!browser) { t.skip('Chromium is not installed'); return; }
+  if (!browser) {
+    if (process.env.CI) assert.fail('Chromium is not installed in CI');
+    t.skip('Chromium is not installed');
+    return;
+  }
+  const { context, page, errors } = await openEngine(browser, { initScript: SEED_SCRIPT });
   try {
-    const { page, errors } = await openEngine(browser, { initScript: SEED_SCRIPT });
-
     const result = await page.evaluate(() => {
       for (let round = 0; round < 4; round++) {
         sprites.forEach(s => { if (s.state !== 'dead') s.explode(); });
@@ -210,16 +234,18 @@ test('the particle budget is enforced under sustained chain detonations', async 
     assert.ok(result.particles > 0, 'explosions should still produce particles');
     assert.deepEqual(errors, []);
   } finally {
-    await browser.close();
+    await context.close();
   }
 });
 
 test('HUD toggles expose and apply their state', async t => {
-  const browser = await launch();
-  if (!browser) { t.skip('Chromium is not installed'); return; }
+  if (!browser) {
+    if (process.env.CI) assert.fail('Chromium is not installed in CI');
+    t.skip('Chromium is not installed');
+    return;
+  }
+  const { context, page, errors } = await openEngine(browser, { initScript: SEED_SCRIPT });
   try {
-    const { page, errors } = await openEngine(browser, { initScript: SEED_SCRIPT });
-
     const sandbox = page.locator('#btnSandbox');
     await sandbox.click();
     assert.equal(await sandbox.getAttribute('aria-pressed'), 'true');
@@ -237,6 +263,6 @@ test('HUD toggles expose and apply their state', async t => {
 
     assert.deepEqual(errors, []);
   } finally {
-    await browser.close();
+    await context.close();
   }
 });

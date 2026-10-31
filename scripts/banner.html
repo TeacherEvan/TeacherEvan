@@ -172,11 +172,7 @@ function drawGhost(cx, cy, sz, col, mood, t = 0, jitter = 0, prng = null) {
   const botY = cy + s * 0.62;
   const tw = (r * 2) / 3;
 
-  const bodyGrad = ctx.createLinearGradient(cx - r, topY - r, cx + r, botY + tw / 2);
-  bodyGrad.addColorStop(0, col);
-  bodyGrad.addColorStop(1, col);
-
-  ctx.fillStyle = bodyGrad;
+  ctx.fillStyle = col;
   ctx.shadowColor = col;
   ctx.shadowBlur = mood === 'alarm' ? 18 : 10;
 
@@ -677,7 +673,6 @@ window.__renderFrame = function(t) {
     tick++;
   }
   renderFrame(t);
-  return canvas.toDataURL('image/png');
 };
 
 // Also animate live if opened directly in a browser
