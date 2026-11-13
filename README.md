@@ -1,8 +1,8 @@
 <div align="center">
 
-<!-- 150-Sprite Interactive Playground Banner — click to launch live playground -->
-<a href="https://TeacherEvan.github.io/TeacherEvan/" target="_blank" title="Click to play the 150-Sprite Interactive Playground v5.0!">
-  <img src="assets/pickaboo-loop.gif" alt="150-Sprite Interactive Playground v5.0" width="100%" />
+<!-- 100-Sprite Interactive Playground Banner — click to launch live playground -->
+<a href="https://TeacherEvan.github.io/TeacherEvan/" target="_blank" title="Click to play the 100-Sprite Interactive Playground v5.0!">
+  <img src="assets/pickaboo-loop.gif" alt="100-Sprite Interactive Playground v5.0" width="100%" />
 </a>
 
 <br/><br/>
@@ -24,7 +24,7 @@
 
 <p>
   <a href="https://TeacherEvan.github.io/TeacherEvan/">
-    <img src="https://img.shields.io/badge/🎮%20PLAY%20LIVE-150--Sprite%20Playground%20v5.0-d4af37?style=for-the-badge" alt="Live Game" />
+    <img src="https://img.shields.io/badge/🎮%20PLAY%20LIVE-100--Sprite%20Playground%20v5.0-d4af37?style=for-the-badge" alt="Live Game" />
   </a>
 </p>
 
@@ -90,7 +90,7 @@ const PickaBoo: Creator = {
 
 | Project | Description | Stack | Links |
 | :--- | :--- | :--- | :--- |
-| 👾 **150-Sprite Playground v5.0** | Interactive 150-sprite boids playground (constellation links, segmented trails, grab/fling, tap ripples, singularity/supernova & pentatonic Web Audio) | `Canvas` `Web Audio` `Boids` | [▶ Live Playground](https://TeacherEvan.github.io/TeacherEvan/) · [Source](docs/index.html) |
+| 👾 **100-Sprite Playground v5.0** | Interactive 100-sprite boids playground (constellation links, tapered trails, glow halos, grab/fling, tap ripples, singularity/supernova & pentatonic Web Audio) | `Canvas` `Web Audio` `Boids` | [▶ Live Playground](https://TeacherEvan.github.io/TeacherEvan/) · [Source](docs/index.html) |
 | 🧪 **Engine Test Harness** | Headless-Chromium regression suite: frame-rate-independent physics, particle budget, pointer lifecycle, NaN guards and repo integrity | `node:test` `Playwright` | [Tests](tests/) |
 | 🎞️ **Banner Asset Pipeline** | Deterministic 150-frame Canvas capture compiled to a palette-optimised looping GIF, plus the animated vector banner | `Node` `Playwright` `FFmpeg` | [Pipeline](scripts/capture_banner.js) · [Vector Banner](assets/pickaboo-banner.svg) |
 
@@ -126,6 +126,6 @@ const PickaBoo: Creator = {
 </a>
 
 <br/><br/>
-<sub>⚡ <strong>150-Sprite Interactive Playground v5.0</strong> — Dark Academia Edition · Engineered by <a href="https://github.com/TeacherEvan">TeacherEvan</a></sub>
+<sub>⚡ <strong>100-Sprite Interactive Playground v5.0</strong> — Dark Academia Edition · Engineered by <a href="https://github.com/TeacherEvan">TeacherEvan</a></sub>
 
 </div>

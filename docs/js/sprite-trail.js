@@ -2,7 +2,7 @@
     'use strict';
 
     /** Trail history length. */
-    const TRAIL_CAPACITY = 8;
+    const TRAIL_CAPACITY = 12;
 
     /**
      * Longest trail segment that may be drawn, in CSS pixels.

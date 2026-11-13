@@ -1,10 +1,11 @@
 /**
  * Engine behaviour tests — real Chromium, real input events.
  *
- * Regression guards for the direct 150-sprite interactive playground (v5.0):
- *   - loads directly into 150 sprites with no swipe pager
- *   - tap ripples, hold singularity/supernova, and grab/drag/fling work
- *   - pointers clear cleanly on pointerleave
+ * Regression guards for the direct 100-sprite interactive playground (v5.0):
+ *   - loads directly into 100 sprites with no swipe pager
+ *   - tap ripples, hold singularity/supernova, and grab/drag/fling work smoothly
+ *   - pointers clear cleanly on pointerleave and blur
+ *   - 390px mobile fit, coarse pointer 44px touch targets, reduced motion honored
  *   - no sprite ever ends up with NaN coordinates
  */
 const test = require('node:test');
@@ -46,7 +47,7 @@ test.after(async () => {
   }
 });
 
-test('loads directly into 150-sprite playground with no errors or swipe pager', async (t) => {
+test('loads directly into 100-sprite playground with no errors or swipe pager', async (t) => {
   if (!browser) return t.skip('Chromium not available');
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   const errors = [];
@@ -70,9 +71,9 @@ test('loads directly into 150-sprite playground with no errors or swipe pager', 
   assert.equal(info.version, '5.0');
   assert.equal(info.hasPager, false, 'should not expose a swipe pager');
   assert.equal(info.hasPickaboo, false, 'should not expose legacy pickaboo');
-  assert.equal(info.snap.spriteCount, 150);
+  assert.equal(info.snap.spriteCount, 100);
   assert.equal(info.snap.isPaused, false);
-  assert.equal(info.snap.positions.length, 150);
+  assert.equal(info.snap.positions.length, 100);
   for (const s of info.snap.positions) {
     assert.ok(Number.isFinite(s.x) && Number.isFinite(s.y), 'finite sprite position');
     assert.ok(Number.isFinite(s.vx) && Number.isFinite(s.vy), 'finite sprite velocity');
@@ -88,8 +89,20 @@ test('tap spawns ripple and hold releases supernova with finite coordinates', as
   await page.goto(ENGINE_URL, { waitUntil: 'load' });
   await page.waitForTimeout(150);
 
-  // Tap in empty space or near center
-  await page.mouse.move(640, 400);
+  // Pick a genuine empty-space point outside every sprite's hit radius
+  const emptySpot = await page.evaluate(() => {
+    const snap = window.__sprites.snapshot();
+    const minSep = snap.hitRadius + 24;
+    for (let x = 200; x <= 1080; x += 60) {
+      for (let y = 160; y <= 640; y += 60) {
+        const clear = snap.positions.every(p => Math.hypot(p.x - x, p.y - y) > minSep);
+        if (clear) return { x, y };
+      }
+    }
+    return { x: 640, y: 400 };
+  });
+
+  await page.mouse.move(emptySpot.x, emptySpot.y);
   await page.mouse.down();
   await page.waitForTimeout(50);
   await page.mouse.up();
@@ -100,7 +113,7 @@ test('tap spawns ripple and hold releases supernova with finite coordinates', as
   // Hold to build singularity, then release supernova
   await page.mouse.move(320, 240);
   await page.mouse.down();
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(500);
   await page.mouse.up();
   await page.waitForTimeout(100);
 
@@ -114,7 +127,7 @@ test('tap spawns ripple and hold releases supernova with finite coordinates', as
   await page.close();
 });
 
-test('grabbing, dragging, and flinging a sprite keeps finite coordinates', async (t) => {
+test('grabbing, dragging, and flinging a sprite keeps kinetic momentum smoothly', async (t) => {
   if (!browser) return t.skip('Chromium not available');
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   await page.addInitScript(SEED_SCRIPT);
@@ -127,9 +140,9 @@ test('grabbing, dragging, and flinging a sprite keeps finite coordinates', async
   const duringGrab = await page.evaluate(() => window.__sprites.snapshot());
   assert.equal(duringGrab.grabbed, 1, 'sprite should be grabbed when pressing directly on it');
 
-  await page.mouse.move(target.x + 120, target.y + 80, { steps: 5 });
+  await page.mouse.move(target.x + 140, target.y + 90, { steps: 6 });
   await page.mouse.up();
-  await page.waitForTimeout(100);
+  await page.waitForTimeout(60);
 
   const afterFling = await page.evaluate(() => window.__sprites.snapshot());
   assert.equal(afterFling.grabbed, 0);
@@ -162,6 +175,41 @@ test('sound and motion buttons toggle aria-pressed', async (t) => {
   assert.equal(motionRestored, motionBefore);
 
   await page.close();
+});
+
+test('mobile 390px viewport fits controls cleanly with 44px touch targets and reduced motion', async (t) => {
+  if (!browser) return t.skip('Chromium not available');
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+    deviceScaleFactor: 2,
+  });
+  const page = await context.newPage();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto(ENGINE_URL, { waitUntil: 'load' });
+  await page.waitForTimeout(150);
+
+  const metrics = await page.evaluate(() => {
+    const controls = [...document.querySelectorAll('header button, header a')];
+    const maxRight = Math.max(...controls.map(el => el.getBoundingClientRect().right));
+    const minHeight = Math.min(...controls.map(el => el.getBoundingClientRect().height));
+    const dotAnim = getComputedStyle(document.querySelector('.dot-live')).animationName;
+    return {
+      scrollWidth: document.documentElement.scrollWidth,
+      innerWidth: window.innerWidth,
+      maxRight,
+      minHeight,
+      dotAnim,
+    };
+  });
+
+  assert.equal(metrics.scrollWidth, metrics.innerWidth);
+  assert.ok(metrics.maxRight <= 390, `control clips past 390px: ${metrics.maxRight}`);
+  assert.ok(metrics.minHeight >= 44, `expected >= 44px touch target, got ${metrics.minHeight}`);
+  assert.equal(metrics.dotAnim, 'none');
+
+  await context.close();
 });
 
 test('pointercancel and blur clear active pointers cleanly', async (t) => {

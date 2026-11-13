@@ -3,27 +3,34 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>150-Sprite Interactive Playground v5.0 | TeacherEvan</title>
+<title>100-Sprite Interactive Playground v5.0 | TeacherEvan</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
 
   :root {
-    --bg:        #0e0c16;
-    --surface:   #1a1630;
-    --border:    #3e3458;
-    --gold:      #d4af37;
-    --parchment: #f5e6b4;
-    --muted:     #8b8070;
+    --surface-void:    oklch(0.14 0.020 278);
+    --surface-layer-1: oklch(0.18 0.025 278);
+    --surface-layer-2: oklch(0.22 0.028 278);
+    --surface-pill:    oklch(0.18 0.025 278 / 0.86);
+    --border-subtle:   oklch(1 0 0 / 0.11);
+    --border-strong:   oklch(0.78 0.14 85 / 0.65);
+    --specular-top:    inset 0 1px 0 0 oklch(1 0 0 / 0.14);
+    --specular-elev:   inset 0 1px 0 0 oklch(1 0 0 / 0.24);
+    --gold:            oklch(0.78 0.14 85);
+    --parchment:       oklch(0.94 0.04 92);
+    --text-muted:      oklch(0.69 0.02 278);
   }
 
   html, body {
-    background: var(--bg);
+    background: #0e0c16;
+    background: var(--surface-void);
     color: var(--parchment);
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     width: 100%;
     height: 100dvh;
     overflow: hidden;
     touch-action: none;
+    -webkit-font-smoothing: antialiased;
   }
 
   canvas {
@@ -43,74 +50,162 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 18px;
+    padding: 12px 16px;
     z-index: 100;
     pointer-events: none;
-    gap: 12px;
+    gap: 10px;
   }
 
   .pill {
     background: rgba(26, 22, 48, 0.86);
-    border: 1px solid var(--border);
+    background: var(--surface-pill);
+    border: 1px solid var(--border-subtle);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border-radius: 10px;
-    padding: 8px 14px;
+    border-radius: 12px;
+    padding: 7px 12px;
     display: flex;
     align-items: center;
     gap: 10px;
     pointer-events: auto;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    max-width: 100%;
+    box-shadow:
+      var(--specular-top),
+      0 2px 4px 0 oklch(0 0 0 / 0.4),
+      0 10px 24px -4px oklch(0 0 0 / 0.55);
+    contain: layout style;
   }
 
   .dot-live {
     width: 9px;
     height: 9px;
+    flex-shrink: 0;
     border-radius: 50%;
     background: var(--gold);
-    box-shadow: 0 0 10px var(--gold);
-    animation: blink 1.5s infinite ease-in-out;
+    box-shadow: 0 0 10px oklch(0.78 0.14 85 / 0.85);
+    animation: blink 1.8s infinite ease-in-out;
   }
   @keyframes blink {
     0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.3; transform: scale(0.7); }
+    50% { opacity: 0.42; transform: scale(0.78); }
   }
 
-  h1 { font-size: 14px; font-weight: 700; letter-spacing: 0.5px; color: var(--parchment); }
-  .stat { font-size: 13px; color: var(--muted); }
-  .stat strong { color: var(--gold); font-family: monospace; font-size: 14px; }
-
-  .controls { display: flex; gap: 6px; flex-wrap: wrap; }
-  button, .btn-link {
-    background: var(--surface);
+  h1 {
+    font-size: 13.5px;
+    font-weight: 700;
+    letter-spacing: 0.35px;
     color: var(--parchment);
-    border: 1px solid var(--border);
-    padding: 6px 11px;
-    border-radius: 7px;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    text-decoration: none;
+  }
+  .stat {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .stat strong {
+    color: var(--gold);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13.5px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .controls {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  button, .btn-link {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    transition: background 0.15s, border-color 0.15s, transform 0.1s, color 0.15s;
+    justify-content: center;
+    gap: 5px;
+    min-height: 36px;
+    padding: 6px 12px;
+    border-radius: 8px;
     font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+    color: var(--parchment);
+    background: linear-gradient(180deg, oklch(0.24 0.03 278) 0%, oklch(0.18 0.025 278) 100%);
+    border: 1px solid oklch(1 0 0 / 0.12);
+    box-shadow:
+      var(--specular-top),
+      0 1px 2px 0 oklch(0 0 0 / 0.45),
+      0 4px 8px -2px oklch(0 0 0 / 0.28);
+    text-decoration: none;
+    cursor: pointer;
+    touch-action: manipulation;
+    white-space: nowrap;
+    transition:
+      transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+      color 140ms cubic-bezier(0.22, 1, 0.36, 1);
   }
-  button:hover, .btn-link:hover {
-    background: #2a2448;
-    border-color: var(--gold);
-    transform: translateY(-1px);
-    color: #fff;
+
+  button::after, .btn-link::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    background: linear-gradient(180deg, oklch(1 0 0 / 0.07) 0%, oklch(1 0 0 / 0) 100%);
+    box-shadow:
+      var(--specular-elev),
+      0 4px 12px -2px oklch(0 0 0 / 0.5),
+      0 0 14px -4px oklch(0.78 0.14 85 / 0.35);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 140ms cubic-bezier(0.22, 1, 0.36, 1);
   }
-  button:active, .btn-link:active { transform: translateY(0); }
+
+  @media (any-pointer: coarse) {
+    button, .btn-link {
+      min-height: 44px;
+      min-width: 44px;
+      padding: 8px 13px;
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    button:hover:not(:disabled), .btn-link:hover:not(:disabled) {
+      border-color: var(--border-strong);
+      transform: translate3d(0, -1px, 0) scale(1.01);
+      color: #ffffff;
+    }
+    button:hover:not(:disabled)::after, .btn-link:hover:not(:disabled)::after {
+      opacity: 1;
+    }
+  }
+
+  button:active:not(:disabled), .btn-link:active:not(:disabled) {
+    transition-duration: 25ms;
+    transform: translate3d(0, 1px, 0) scale(0.985);
+    box-shadow:
+      inset 0 2px 4px 0 oklch(0 0 0 / 0.65),
+      0 1px 1px 0 oklch(0 0 0 / 0.35);
+  }
+  button:active:not(:disabled)::after, .btn-link:active:not(:disabled)::after {
+    opacity: 0;
+  }
+
   button:focus-visible, .btn-link:focus-visible {
     outline: 2px solid var(--gold);
     outline-offset: 2px;
   }
+
+  button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+
   button.active {
-    background: rgba(212, 175, 55, 0.2);
-    border-color: var(--gold);
+    background: linear-gradient(180deg, oklch(0.30 0.06 85 / 0.5) 0%, oklch(0.22 0.05 85 / 0.45) 100%);
+    border-color: var(--border-strong);
     color: var(--gold);
   }
 
@@ -118,30 +213,61 @@
     position: fixed;
     bottom: 14px;
     left: 50%;
-    transform: translateX(-50%);
-    background: rgba(26, 22, 48, 0.84);
-    border: 1px solid var(--border);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-radius: 20px;
-    padding: 6px 16px;
+    transform: translate3d(-50%, 0, 0);
+    background: linear-gradient(180deg, oklch(0.20 0.025 278) 0%, oklch(0.16 0.022 278) 100%);
+    border: 1px solid var(--border-subtle);
+    border-radius: 999px;
+    padding: 7px 16px;
     font-size: 12px;
-    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
     z-index: 100;
     pointer-events: none;
     white-space: nowrap;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    max-width: calc(100vw - 24px);
+    box-shadow:
+      var(--specular-top),
+      0 2px 4px 0 oklch(0 0 0 / 0.4),
+      0 10px 22px -4px oklch(0 0 0 / 0.5);
+    contain: layout style;
   }
-  footer strong { color: var(--gold); }
+  footer strong { color: var(--gold); font-weight: 600; }
 
   @media (max-width: 680px) {
-    header { flex-direction: column; align-items: stretch; }
-    .pill { justify-content: space-between; }
-    footer { font-size: 11px; padding: 5px 12px; width: 90%; text-align: center; white-space: normal; }
+    header {
+      flex-direction: column;
+      align-items: stretch;
+      padding: 10px 12px;
+      gap: 8px;
+    }
+    .pill {
+      justify-content: space-between;
+      padding: 6px 10px;
+    }
+    .controls {
+      justify-content: space-between;
+    }
+    footer {
+      font-size: 11px;
+      padding: 6px 12px;
+      border-radius: 14px;
+      white-space: normal;
+      text-align: center;
+      line-height: 1.35;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .dot-live { animation: none; }
+    *, *::before, *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+    .dot-live {
+      animation: none;
+    }
+    button:hover, .btn-link:hover, button:active, .btn-link:active {
+      transform: none !important;
+    }
   }
 </style>
 </head>
@@ -150,8 +276,8 @@
 <header>
   <div class="pill">
     <div class="dot-live" aria-hidden="true"></div>
-    <h1>150-Sprite Playground v5.0</h1>
-    <span class="stat" aria-label="Active sprites">✨ <strong id="spriteCount">150</strong></span>
+    <h1>100-Sprite Playground v5.0</h1>
+    <span class="stat" aria-label="Active sprites">✨ <strong id="spriteCount">100</strong></span>
   </div>
   <div class="pill controls">
     <button id="btnSound" title="Toggle Synthesized Web Audio" aria-pressed="true">🔊 Sound</button>
@@ -160,7 +286,7 @@
   </div>
 </header>
 
-<canvas id="spriteCanvas" role="img" aria-label="150 interactive colorful sprites playground. Drag, fling, tap for ripples, or hold for a supernova.">
+<canvas id="spriteCanvas" role="img" aria-label="100 interactive colorful sprites playground. Drag, fling, tap for ripples, or hold for a supernova.">
   Your browser does not support the HTML5 canvas element.
 </canvas>
 
@@ -187,7 +313,7 @@ window.addEventListener('DOMContentLoaded', function () {
     soundscape.handleInteraction(event);
   });
 
-  // Start the 150-sprite playground immediately on load
+  // Start the 100-sprite playground immediately on load
   spritePlayground.resume();
 
   let soundOn = true;

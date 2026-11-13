@@ -15,9 +15,8 @@ const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 const W = 900;
 const H = 300;
-const FPS = 25;
 const DURATION = 6.0;
-const SPRITE_COUNT = 150;
+const SPRITE_COUNT = 100;
 
 const PALETTE = [
   '#00f0ff', '#e000ff', '#ffc700', '#22ff00', '#ff4d6d',
@@ -41,20 +40,40 @@ function hexToRgb(hex) {
   return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
 }
 
+const glowCache = new Map();
+function getGlowStamp(color, rgb) {
+  let stamp = glowCache.get(color);
+  if (stamp) return stamp;
+  const s = 44;
+  const h = s / 2;
+  stamp = document.createElement('canvas');
+  stamp.width = s;
+  stamp.height = s;
+  const g = stamp.getContext('2d');
+  const grad = g.createRadialGradient(h, h, 0, h, h, h);
+  grad.addColorStop(0, `rgba(${rgb}, 0.65)`);
+  grad.addColorStop(0.35, `rgba(${rgb}, 0.22)`);
+  grad.addColorStop(1, `rgba(${rgb}, 0)`);
+  g.fillStyle = grad;
+  g.fillRect(0, 0, s, s);
+  glowCache.set(color, stamp);
+  return stamp;
+}
+
 const SPRITES = Array.from({ length: SPRITE_COUNT }, (_, i) => {
   const color = PALETTE[i % PALETTE.length];
+  const depth = 0.8 + r() * 0.4;
   return {
     id: i,
     x0: r() * W,
     y0: r() * H,
-    vx: (r() - 0.5) * 70,
-    vy: (r() - 0.5) * 45,
-    ampX: 12 + r() * 26,
-    ampY: 10 + r() * 20,
+    ampX: 14 + r() * 28,
+    ampY: 10 + r() * 22,
     freqX: 1 + Math.floor(r() * 2),
     freqY: 1 + Math.floor(r() * 2),
     phase: r() * Math.PI * 2,
-    size: 2.2 + r() * 3.0,
+    depth,
+    size: (2.4 + r() * 2.4) * depth,
     color,
     rgb: hexToRgb(color),
     shape: SHAPES[i % SHAPES.length],
@@ -72,26 +91,44 @@ function pill(x, y, w, h, rad, fill, stroke, lw = 1) {
     ctx.lineWidth = lw;
     ctx.stroke();
   }
+  // Specular top inset edge
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x + rad, y + 1);
+  ctx.lineTo(x + w - rad, y + 1);
+  ctx.stroke();
   ctx.restore();
 }
 
-function drawShape(x, y, size, shape, color) {
+function drawShape(x, y, angle, sprite) {
+  const { size, shape, color, rgb } = sprite;
+  const stamp = getGlowStamp(color, rgb);
+  const haloR = size * 3.1;
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = 0.52;
+  ctx.drawImage(stamp, x - haloR, y - haloR, haloR * 2, haloR * 2);
+  ctx.restore();
+
   ctx.save();
   ctx.translate(x, y);
+  ctx.rotate(angle);
   ctx.fillStyle = color;
   ctx.beginPath();
   if (shape === 'square') {
-    ctx.rect(-size, -size, size * 2, size * 2);
+    ctx.rect(-size * 0.88, -size * 0.88, size * 1.76, size * 1.76);
   } else if (shape === 'triangle') {
-    ctx.moveTo(0, -size * 1.15);
-    ctx.lineTo(size, size * 0.85);
-    ctx.lineTo(-size, size * 0.85);
+    ctx.moveTo(size * 1.15, 0);
+    ctx.lineTo(-size * 0.85, size * 0.92);
+    ctx.lineTo(-size * 0.85, -size * 0.92);
     ctx.closePath();
   } else if (shape === 'diamond') {
-    ctx.moveTo(0, -size * 1.15);
-    ctx.lineTo(size * 0.9, 0);
-    ctx.lineTo(0, size * 1.15);
-    ctx.lineTo(-size * 0.9, 0);
+    ctx.moveTo(size * 1.2, 0);
+    ctx.lineTo(0, size * 0.85);
+    ctx.lineTo(-size * 1.2, 0);
+    ctx.lineTo(0, -size * 0.85);
     ctx.closePath();
   } else {
     ctx.arc(0, 0, size, 0, Math.PI * 2);
@@ -99,7 +136,7 @@ function drawShape(x, y, size, shape, color) {
   ctx.fill();
 
   ctx.fillStyle = '#ffffff';
-  ctx.globalAlpha = 0.72;
+  ctx.globalAlpha = 0.78;
   ctx.beginPath();
   ctx.arc(0, 0, size * 0.42, 0, Math.PI * 2);
   ctx.fill();
@@ -119,30 +156,41 @@ function renderFrame(t) {
   ctx.fillStyle = '#0e0c16';
   ctx.fillRect(0, 0, W, H);
 
-  // Subtle radial nebula glow
-  const grad = ctx.createRadialGradient(W * 0.5, H * 0.52, 20, W * 0.5, H * 0.52, 420);
-  grad.addColorStop(0, 'rgba(109, 40, 217, 0.16)');
-  grad.addColorStop(1, 'rgba(14, 12, 22, 0)');
-  ctx.fillStyle = grad;
+  // Subtle layered radial nebula wash
+  const grad1 = ctx.createRadialGradient(W * 0.36, H * 0.44, 15, W * 0.36, H * 0.44, 420);
+  grad1.addColorStop(0, 'rgba(91, 33, 182, 0.18)');
+  grad1.addColorStop(1, 'rgba(14, 12, 22, 0)');
+  ctx.fillStyle = grad1;
   ctx.fillRect(0, 0, W, H);
 
-  // Compute all 150 sprite positions for seamless 6s loop
-  const pts = SPRITES.map((s) => ({ s, ...posAt(s, t) }));
+  const grad2 = ctx.createRadialGradient(W * 0.72, H * 0.62, 10, W * 0.72, H * 0.62, 340);
+  grad2.addColorStop(0, 'rgba(0, 180, 216, 0.10)');
+  grad2.addColorStop(1, 'rgba(14, 12, 22, 0)');
+  ctx.fillStyle = grad2;
+  ctx.fillRect(0, 0, W, H);
+
+  // Compute all 100 sprite positions for seamless 6s loop
+  const pts = SPRITES.map((s) => {
+    const p = posAt(s, t);
+    const pNext = posAt(s, t + 0.03);
+    return { s, x: p.x, y: p.y, angle: Math.atan2(pNext.y - p.y, pNext.x - p.x) };
+  });
 
   // Ripple pulse at center-right
   const pulseT = (t % 3.0) / 3.0;
   const rx = W * 0.62;
   const ry = H * 0.56;
   const radius = 12 + pulseT * 140;
-  const alpha = Math.pow(1 - pulseT, 1.5) * 0.75;
+  const alpha = Math.pow(1 - pulseT, 1.5) * 0.8;
   ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
   ctx.strokeStyle = `rgba(0, 240, 255, ${alpha})`;
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.arc(rx, ry, radius, 0, Math.PI * 2);
   ctx.stroke();
-  ctx.strokeStyle = `rgba(212, 175, 55, ${alpha * 0.65})`;
-  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = `rgba(212, 175, 55, ${alpha * 0.68})`;
+  ctx.lineWidth = 1.25;
   ctx.beginPath();
   ctx.arc(rx, ry, radius * 0.7, 0, Math.PI * 2);
   ctx.stroke();
@@ -150,7 +198,7 @@ function renderFrame(t) {
 
   // Deduplicated constellation lines (capped at 4 per sprite)
   const counts = new Uint8Array(SPRITE_COUNT);
-  const maxDistSq = 95 * 95;
+  const maxDistSq = 108 * 108;
   ctx.lineWidth = 0.85;
   for (let i = 0; i < pts.length; i++) {
     if (counts[i] >= 4) continue;
@@ -164,7 +212,7 @@ function renderFrame(t) {
       if (d2 < maxDistSq) {
         counts[i]++;
         counts[j]++;
-        const op = 0.36 * (1 - d2 / maxDistSq);
+        const op = 0.34 * (1 - d2 / maxDistSq);
         ctx.strokeStyle = `rgba(${p1.s.rgb}, ${op})`;
         ctx.beginPath();
         ctx.moveTo(p1.x, p1.y);
@@ -174,28 +222,37 @@ function renderFrame(t) {
     }
   }
 
-  // Short motion trails
-  ctx.lineWidth = 1.3;
+  // Tapered multi-segment motion trails
+  ctx.lineCap = 'round';
   for (let i = 0; i < pts.length; i++) {
     const p = pts[i];
-    const prev = posAt(p.s, t - 0.12);
-    if (Math.hypot(p.x - prev.x, p.y - prev.y) < 80) {
-      ctx.strokeStyle = `rgba(${p.s.rgb}, 0.35)`;
+    const pMid = posAt(p.s, t - 0.08);
+    const pTail = posAt(p.s, t - 0.16);
+    if (Math.hypot(p.x - pMid.x, p.y - pMid.y) < 60 && Math.hypot(pMid.x - pTail.x, pMid.y - pTail.y) < 60) {
+      ctx.strokeStyle = `rgba(${p.s.rgb}, 0.18)`;
+      ctx.lineWidth = 0.9;
       ctx.beginPath();
-      ctx.moveTo(prev.x, prev.y);
+      ctx.moveTo(pTail.x, pTail.y);
+      ctx.lineTo(pMid.x, pMid.y);
+      ctx.stroke();
+
+      ctx.strokeStyle = `rgba(${p.s.rgb}, 0.42)`;
+      ctx.lineWidth = 1.7;
+      ctx.beginPath();
+      ctx.moveTo(pMid.x, pMid.y);
       ctx.lineTo(p.x, p.y);
       ctx.stroke();
     }
   }
 
-  // Draw all 150 sprites
+  // Draw all 100 sprites
   for (let i = 0; i < pts.length; i++) {
     const p = pts[i];
-    drawShape(p.x, p.y, p.s.size, p.s.shape, p.s.color);
+    drawShape(p.x, p.y, p.angle, p.s);
   }
 
   // Header pills
-  pill(20, 16, 232, 34, 8, 'rgba(26, 22, 48, 0.9)', '#3e3458', 1.2);
+  pill(20, 16, 232, 34, 8, 'rgba(26, 22, 48, 0.92)', '#3e3458', 1.2);
   ctx.fillStyle = '#d4af37';
   ctx.beginPath();
   ctx.arc(36, 33, 4.5, 0, Math.PI * 2);
@@ -204,15 +261,15 @@ function renderFrame(t) {
   ctx.font = 'bold 11.5px "Segoe UI", DejaVu Sans, sans-serif';
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
-  ctx.fillText('150-SPRITE PLAYGROUND  v5.0', 48, 33);
+  ctx.fillText('100-SPRITE PLAYGROUND  v5.0', 48, 33);
 
-  pill(290, 16, 320, 34, 8, 'rgba(26, 22, 48, 0.86)', 'rgba(212, 175, 55, 0.45)', 1);
+  pill(290, 16, 320, 34, 8, 'rgba(26, 22, 48, 0.88)', 'rgba(212, 175, 55, 0.45)', 1);
   ctx.fillStyle = '#fde047';
   ctx.font = 'bold 11px "Segoe UI", DejaVu Sans, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('▶  CLICK TO LAUNCH 150-SPRITE PLAYGROUND', 450, 33);
+  ctx.fillText('▶  CLICK TO LAUNCH 100-SPRITE PLAYGROUND', 450, 33);
 
-  pill(658, 16, 222, 34, 8, 'rgba(26, 22, 48, 0.9)', '#3e3458', 1.2);
+  pill(658, 16, 222, 34, 8, 'rgba(26, 22, 48, 0.92)', '#3e3458', 1.2);
   ctx.fillStyle = '#00f0ff';
   ctx.beginPath();
   ctx.arc(674, 33, 4.5, 0, Math.PI * 2);
