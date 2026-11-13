@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>PickaBoo &amp; 150-Sprite Playground v5.0 — Creative Physics &amp; Sound Sandbox | TeacherEvan</title>
+<title>150-Sprite Interactive Playground v5.0 | TeacherEvan</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
 
@@ -12,11 +12,8 @@
     --surface:   #1a1630;
     --border:    #3e3458;
     --gold:      #d4af37;
-    --crimson:   #b91c1c;
-    --indigo:    #6d28d9;
     --parchment: #f5e6b4;
     --muted:     #8b8070;
-    --sage:      #2d6a4f;
   }
 
   html, body {
@@ -29,31 +26,8 @@
     touch-action: none;
   }
 
-  #mainViewport {
-    position: relative;
-    width: 100vw;
-    height: 100dvh;
-    overflow: hidden;
-    touch-action: none;
-  }
-
-  .home-pager-track {
-    display: flex;
-    width: 200vw;
-    height: 100%;
-    will-change: transform;
-  }
-
-  .pager-page {
-    position: relative;
-    width: 100vw;
-    height: 100%;
-    flex: 0 0 100vw;
-    overflow: hidden;
-  }
-
   canvas {
-    position: absolute;
+    position: fixed;
     inset: 0;
     width: 100%;
     height: 100%;
@@ -61,163 +35,91 @@
     touch-action: none;
   }
 
-  /* ── HUD ────────────────────────────────────────────────────────────── */
   header {
-    position: absolute; top: 0; left: 0; right: 0;
-    display: flex; justify-content: space-between; align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     padding: 12px 18px;
-    z-index: 100; pointer-events: none;
+    z-index: 100;
+    pointer-events: none;
     gap: 12px;
   }
 
   .pill {
-    background: rgba(26,22,48,.86);
+    background: rgba(26, 22, 48, 0.86);
     border: 1px solid var(--border);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-radius: 10px;
     padding: 8px 14px;
-    display: flex; align-items: center; gap: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
     pointer-events: auto;
-    box-shadow: 0 8px 24px rgba(0,0,0,.6);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
   }
 
   .dot-live {
-    width: 9px; height: 9px; border-radius: 50%; background: var(--gold);
-    box-shadow: 0 0 10px var(--gold); animation: blink 1.5s infinite ease-in-out;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 10px var(--gold);
+    animation: blink 1.5s infinite ease-in-out;
   }
   @keyframes blink {
     0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: .3; transform: scale(.7); }
+    50% { opacity: 0.3; transform: scale(0.7); }
   }
 
-  h1 { font-size: 14px; font-weight: 700; letter-spacing: .5px; color: var(--parchment); }
+  h1 { font-size: 14px; font-weight: 700; letter-spacing: 0.5px; color: var(--parchment); }
   .stat { font-size: 13px; color: var(--muted); }
-  .stat strong { color: var(--crimson); font-family: monospace; font-size: 14px; }
-  .combo-badge {
-    color: var(--gold);
-    font-weight: 700;
-    font-size: 12px;
-    background: rgba(212,175,55,.15);
-    padding: 2px 7px;
-    border-radius: 6px;
-    border: 1px solid rgba(212,175,55,.3);
-  }
+  .stat strong { color: var(--gold); font-family: monospace; font-size: 14px; }
 
   .controls { display: flex; gap: 6px; flex-wrap: wrap; }
   button, .btn-link {
     background: var(--surface);
     color: var(--parchment);
     border: 1px solid var(--border);
-    padding: 6px 11px; border-radius: 7px;
-    font-size: 12px; font-weight: 600; cursor: pointer;
-    text-decoration: none; display: inline-flex; align-items: center; gap: 4px;
-    transition: background .15s, border-color .15s, transform .1s, color .15s;
+    padding: 6px 11px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s, color 0.15s;
     font-family: inherit;
   }
   button:hover, .btn-link:hover {
-    background: #2a2448; border-color: var(--gold); transform: translateY(-1px); color: #fff;
+    background: #2a2448;
+    border-color: var(--gold);
+    transform: translateY(-1px);
+    color: #fff;
   }
   button:active, .btn-link:active { transform: translateY(0); }
   button:focus-visible, .btn-link:focus-visible {
-    outline: 2px solid var(--gold); outline-offset: 2px;
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
   }
   button.active {
-    background: rgba(212,175,55,.2);
+    background: rgba(212, 175, 55, 0.2);
     border-color: var(--gold);
     color: var(--gold);
   }
 
-  /* ── Profile Hub Card (Page 0 Overlay) ──────────────────────────────── */
-  .profile-hub-overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    padding: 24px 18px 64px;
-    z-index: 50;
-    pointer-events: none;
-  }
-
-  .profile-hub-card {
-    background: rgba(26, 22, 48, 0.78);
-    border: 1px solid rgba(212, 175, 55, 0.35);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border-radius: 14px;
-    padding: 14px 18px;
-    max-width: 540px;
-    width: 100%;
-    text-align: center;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
-    pointer-events: auto;
-  }
-
-  .profile-hub-title {
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--parchment);
-    margin-bottom: 4px;
-  }
-
-  .profile-hub-sub {
-    font-size: 12px;
-    color: var(--muted);
-    margin-bottom: 10px;
-  }
-
-  .profile-hub-actions {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .btn-explore-sprites {
-    background: linear-gradient(135deg, rgba(109, 40, 217, 0.85), rgba(212, 175, 55, 0.28));
-    border-color: var(--gold);
-    color: var(--parchment);
-    padding: 7px 14px;
-  }
-
-  .swipe-hint-chip {
-    margin-top: 8px;
-    font-size: 11px;
-    color: var(--gold);
-    opacity: 0.88;
-    letter-spacing: 0.3px;
-  }
-
-  /* ── Telemetry / Sandbox Drawer ─────────────────────────────────────── */
-  #telemetry {
-    position: absolute; bottom: 58px; right: 18px;
-    background: rgba(14,12,22,.92);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-family: monospace; font-size: 11px;
-    color: var(--parchment);
-    z-index: 100;
-    pointer-events: auto;
-    box-shadow: 0 10px 30px rgba(0,0,0,.7);
-    display: none;
-    min-width: 190px;
-    backdrop-filter: blur(10px);
-  }
-  #telemetry.open { display: block; }
-  #telemetry h3 { font-size: 11px; color: var(--gold); margin-bottom: 6px; letter-spacing: 1px; text-transform: uppercase; }
-  .tele-row { display: flex; justify-content: space-between; margin: 3px 0; color: var(--muted); }
-  .tele-row span:last-child { color: var(--parchment); font-weight: bold; }
-
-  /* ── Page 1 Playground Chrome & Navigation ──────────────────────────── */
-  .playground-hint {
-    position: absolute;
-    bottom: 52px;
+  footer {
+    position: fixed;
+    bottom: 14px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(26,22,48,.78);
+    background: rgba(26, 22, 48, 0.84);
     border: 1px solid var(--border);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
@@ -225,157 +127,58 @@
     padding: 6px 16px;
     font-size: 12px;
     color: var(--muted);
-    z-index: 80;
+    z-index: 100;
     pointer-events: none;
     white-space: nowrap;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
   }
-  .playground-hint strong { color: var(--gold); }
-
-  .side-screen-return-btn {
-    position: fixed;
-    top: 14px;
-    left: 18px;
-    z-index: 120;
-    background: rgba(26, 22, 48, 0.9);
-    border: 1px solid var(--gold);
-    color: var(--parchment);
-    padding: 8px 14px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 700;
-    box-shadow: 0 8px 24px rgba(0,0,0,.6);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-  }
-  .side-screen-return-btn[hidden] { display: none; }
-
-  .home-pager-dots {
-    position: fixed;
-    bottom: 14px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 6px 14px;
-    border-radius: 999px;
-    background: rgba(26, 22, 48, 0.85);
-    border: 1px solid var(--border);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    z-index: 120;
-  }
-
-  .pager-dot {
-    width: 10px;
-    height: 10px;
-    padding: 0;
-    border-radius: 50%;
-    border: 1px solid var(--gold);
-    background: transparent;
-    cursor: pointer;
-    transition: transform .2s, background .2s;
-  }
-  .pager-dot.active {
-    background: var(--gold);
-    transform: scale(1.25);
-  }
+  footer strong { color: var(--gold); }
 
   @media (max-width: 680px) {
     header { flex-direction: column; align-items: stretch; }
     .pill { justify-content: space-between; }
-    .profile-hub-overlay { padding: 14px 12px 60px; }
-    .playground-hint { font-size: 11px; width: 90%; text-align: center; white-space: normal; }
+    footer { font-size: 11px; padding: 5px 12px; width: 90%; text-align: center; white-space: normal; }
   }
 
   @media (prefers-reduced-motion: reduce) {
     .dot-live { animation: none; }
-    .home-pager-track { transition: none !important; }
   }
 </style>
 </head>
 <body>
 
-<div id="mainViewport">
-  <div id="homePagerTrack" class="home-pager-track">
-    <!-- Page 0: TeacherEvan Profile Hub + PickaBoo v5.0 -->
-    <section id="profileHubPage" class="pager-page" aria-hidden="false" aria-label="TeacherEvan Profile Hub and PickaBoo Sandbox">
-      <header>
-        <div class="pill">
-          <div class="dot-live" aria-hidden="true"></div>
-          <h1>PickaBoo Engine v5.0</h1>
-          <span class="stat" aria-label="Total detonations">💥 <strong id="cnt">0</strong></span>
-          <span class="combo-badge" id="comboDisplay" style="display:none">1x CHAIN</span>
-        </div>
-        <div class="pill controls">
-          <button id="btnSpawn" title="Add 5 more sprites">＋ Spawn</button>
-          <button id="btnChain" title="Detonate the sprite nearest your cursor immediately">💥 Detonate</button>
-          <button id="btnSandbox" title="Toggle Educator Physics Vector &amp; Debug HUD" aria-pressed="false">🎓 Sandbox [D]</button>
-          <button id="btnSound" title="Toggle Synthesized Web Audio" aria-pressed="true">🔊 Sound</button>
-          <button id="btnMotion" title="Reduce camera shake, jitter and particle count" aria-pressed="false">🌀 Motion</button>
-          <a href="https://github.com/TeacherEvan" target="_blank" rel="noopener" class="btn-link" title="Visit TeacherEvan on GitHub">← GitHub Profile</a>
-        </div>
-      </header>
-
-      <div id="telemetry" role="region" aria-label="Engine telemetry">
-        <h3>⚡ Engine Telemetry</h3>
-        <div class="tele-row"><span>FPS</span><span id="telFps">60</span></div>
-        <div class="tele-row"><span>Sprites</span><span id="telSprites">0</span></div>
-        <div class="tele-row"><span>Particles</span><span id="telParticles">0</span></div>
-        <div class="tele-row"><span>Shockwaves</span><span id="telWaves">0</span></div>
-        <div class="tele-row"><span>Chain Combo</span><span id="telCombo">0x</span></div>
-        <div class="tele-row"><span>Vectors</span><span>ON</span></div>
-      </div>
-
-      <canvas id="c" role="img" aria-label="PickaBoo interactive physics sandbox. Sprites chase your pointer and detonate four seconds after contact.">
-        Your browser does not support the HTML5 canvas element required by the PickaBoo Engine.
-      </canvas>
-
-      <div class="profile-hub-overlay">
-        <div class="profile-hub-card">
-          <div class="profile-hub-title">Ewaldt Botha · TeacherEvan (Full-Stack &amp; Creative Technologist)</div>
-          <div class="profile-hub-sub">"I build things that scale, things that teach, and things that explode."</div>
-          <div class="profile-hub-actions">
-            <button id="btnExploreSprites" class="btn-explore-sprites" title="Swipe left or click to enter the 150-Sprite Playground">✨ 150 Sprites Playground →</button>
-            <a href="https://github.com/TeacherEvan" target="_blank" rel="noopener" class="btn-link">GitHub: @TeacherEvan</a>
-          </div>
-          <div class="swipe-hint-chip">👈 Swipe left (or press →) for the 150-Sprite Interactive Playground</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Page 1: Cloned 150-Sprite Interactive Playground -->
-    <section id="spritePlaygroundPage" class="pager-page" inert aria-hidden="true" aria-label="150-Sprite Interactive Playground">
-      <canvas id="spriteCanvas" role="img" aria-label="150 interactive colorful sprites playground. Drag, fling, tap for ripples, or hold for a supernova."></canvas>
-      <div class="playground-hint"><strong>150 Sprites:</strong> Drag &amp; fling · Tap for ripples · Hold for singularity &amp; supernova</div>
-    </section>
+<header>
+  <div class="pill">
+    <div class="dot-live" aria-hidden="true"></div>
+    <h1>150-Sprite Playground v5.0</h1>
+    <span class="stat" aria-label="Active sprites">✨ <strong id="spriteCount">150</strong></span>
   </div>
-</div>
+  <div class="pill controls">
+    <button id="btnSound" title="Toggle Synthesized Web Audio" aria-pressed="true">🔊 Sound</button>
+    <button id="btnMotion" title="Reduce motion and spark effects" aria-pressed="false">🌀 Motion</button>
+    <a href="https://github.com/TeacherEvan" target="_blank" rel="noopener" class="btn-link" title="Visit TeacherEvan on GitHub">← GitHub Profile</a>
+  </div>
+</header>
 
-<button id="sideScreenReturnBtn" class="side-screen-return-btn" hidden aria-label="Return to Profile Hub">← Profile</button>
+<canvas id="spriteCanvas" role="img" aria-label="150 interactive colorful sprites playground. Drag, fling, tap for ripples, or hold for a supernova.">
+  Your browser does not support the HTML5 canvas element.
+</canvas>
 
-<nav id="homePagerDots" class="home-pager-dots" aria-label="Playground Pages">
-  <button class="pager-dot active" data-page="0" aria-label="Profile Hub and PickaBoo"></button>
-  <button class="pager-dot" data-page="1" aria-label="150-Sprite Interactive Playground"></button>
-</nav>
+<footer><strong>Drag &amp; fling</strong> sprites · <strong>Tap</strong> for ripples · <strong>Hold</strong> for singularity &amp; supernova</footer>
 
 <script defer src="js/sprite-palette.js"></script>
 <script defer src="js/sprite-trail.js"></script>
 <script defer src="js/sprite-sparks.js"></script>
 <script defer src="js/sprite-engine.js"></script>
 <script defer src="js/ambient-soundscape.js"></script>
-<script defer src="js/home-pager.js"></script>
-<script defer src="js/pickaboo-engine.js"></script>
 <script>
 window.addEventListener('DOMContentLoaded', function () {
   'use strict';
 
   const ns = window.TeacherEvan || {};
   const spriteCanvas = document.getElementById('spriteCanvas');
-  const pagerTrack = document.getElementById('homePagerTrack');
-  const returnBtn = document.getElementById('sideScreenReturnBtn');
-  const exploreBtn = document.getElementById('btnExploreSprites');
-  const pagerDots = document.getElementById('homePagerDots');
+  const btnSound = document.getElementById('btnSound');
+  const btnMotion = document.getElementById('btnMotion');
 
   const soundscape = new ns.AmbientSoundscape();
   const spritePlayground = new ns.SpritePlayground(spriteCanvas);
@@ -384,77 +187,44 @@ window.addEventListener('DOMContentLoaded', function () {
     soundscape.handleInteraction(event);
   });
 
-  if (window.__pickaboo && typeof window.__pickaboo.setCallbacks === 'function') {
-    window.__pickaboo.setCallbacks({
-      onSound: function (enabled) {
-        soundscape.setEnabled(enabled);
-      },
-      onMotion: function (reduced) {
-        spritePlayground.setReducedMotion(reduced);
-      }
-    });
-  }
+  // Start the 150-sprite playground immediately on load
+  spritePlayground.resume();
 
-  function updatePagerUI(pos) {
-    if (returnBtn) returnBtn.hidden = pos === 0;
-    if (pagerDots) {
-      pagerDots.querySelectorAll('.pager-dot').forEach(function (dot) {
-        dot.classList.toggle('active', Number(dot.dataset.page) === pos);
-      });
-    }
-    if (pos === 1) {
-      if (window.__pickaboo) window.__pickaboo.pause();
-      spritePlayground.resume();
-    } else {
-      spritePlayground.pause();
-      soundscape.fadeOut(0.4);
-      if (window.__pickaboo) window.__pickaboo.resume();
-    }
-  }
-
-  const homePager = new ns.HomePager.HomePager(pagerTrack, {
-    container: document.getElementById('mainViewport'),
-    page0: document.getElementById('profileHubPage'),
-    page1: document.getElementById('spritePlaygroundPage'),
-    isSpriteTouchedFn: function (x, y) {
-      return Boolean(spritePlayground.hitTestSprite(x, y));
-    },
-    onGestureUnlock: function () {
-      soundscape.unlockFromGesture();
-    },
-    onPageChange: updatePagerUI
+  let soundOn = true;
+  btnSound.addEventListener('click', function () {
+    soundOn = !soundOn;
+    if (soundOn) soundscape.unlockFromGesture();
+    soundscape.setEnabled(soundOn);
+    btnSound.textContent = soundOn ? '🔊 Sound' : '🔇 Muted';
+    btnSound.setAttribute('aria-pressed', String(soundOn));
   });
 
-  if (exploreBtn) {
-    exploreBtn.addEventListener('click', function () {
-      soundscape.unlockFromGesture();
-      homePager.goTo(1, true);
+  const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let reduceMotion = motionQuery.matches;
+  function syncMotionUI() {
+    spritePlayground.setReducedMotion(reduceMotion);
+    btnMotion.setAttribute('aria-pressed', String(reduceMotion));
+    btnMotion.classList.toggle('active', reduceMotion);
+    btnMotion.textContent = reduceMotion ? '🌀 Motion: Reduced' : '🌀 Motion';
+  }
+  btnMotion.addEventListener('click', function () {
+    reduceMotion = !reduceMotion;
+    syncMotionUI();
+  });
+  if (typeof motionQuery.addEventListener === 'function') {
+    motionQuery.addEventListener('change', function (e) {
+      reduceMotion = e.matches;
+      syncMotionUI();
     });
   }
+  syncMotionUI();
 
-  if (returnBtn) {
-    returnBtn.addEventListener('click', function () {
-      homePager.goTo(0, true);
-    });
-  }
-
-  if (pagerDots) {
-    pagerDots.addEventListener('click', function (e) {
-      const dot = e.target.closest('.pager-dot');
-      if (dot) {
-        const targetPage = Number(dot.dataset.page);
-        if (targetPage === 1) soundscape.unlockFromGesture();
-        homePager.goTo(targetPage, true);
-      }
-    });
-  }
-
-  window.__pager = {
-    getPosition: function () { return homePager.getPosition(); },
-    goTo: function (pos, smooth) { return homePager.goTo(pos, smooth); }
-  };
+  window.addEventListener('pointerdown', function () {
+    if (soundOn) soundscape.unlockFromGesture();
+  }, { passive: true });
 
   window.__sprites = {
+    version: '5.0',
     snapshot: function () { return spritePlayground.getSnapshot(); }
   };
 });

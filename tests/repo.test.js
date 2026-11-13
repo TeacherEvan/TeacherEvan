@@ -33,8 +33,6 @@ test('core project files exist', () => {
     'docs/js/sprite-sparks.js',
     'docs/js/sprite-engine.js',
     'docs/js/ambient-soundscape.js',
-    'docs/js/home-pager.js',
-    'docs/js/pickaboo-engine.js',
     'docs/ARCHITECTURE.md',
     'assets/pickaboo-loop.gif',
     'assets/pickaboo-banner.svg',

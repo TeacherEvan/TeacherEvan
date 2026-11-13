@@ -52,7 +52,7 @@ const OUTPUT      = path.join(ROOT, 'assets', 'pickaboo-loop.gif');
 
     // Two-pass ffmpeg GIF: 20fps, scaled width, optimized palette
     const vf = `fps=20,scale=${OUT_W}:-1:flags=lanczos,split[s0][s1];` +
-      `[s0]palettegen=max_colors=128:reserve_transparent=0:stats_mode=diff[p];` +
+      `[s0]palettegen=max_colors=80:reserve_transparent=0:stats_mode=diff[p];` +
       `[s1][p]paletteuse=dither=bayer:bayer_scale=3:diff_mode=rectangle`;
 
     execFileSync('ffmpeg', [
