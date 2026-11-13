@@ -28,6 +28,13 @@ test('core project files exist', () => {
     'README.md',
     'package.json',
     'docs/index.html',
+    'docs/js/sprite-palette.js',
+    'docs/js/sprite-trail.js',
+    'docs/js/sprite-sparks.js',
+    'docs/js/sprite-engine.js',
+    'docs/js/ambient-soundscape.js',
+    'docs/js/home-pager.js',
+    'docs/js/pickaboo-engine.js',
     'docs/ARCHITECTURE.md',
     'assets/pickaboo-loop.gif',
     'assets/pickaboo-banner.svg',
@@ -62,9 +69,9 @@ test('the legacy Python banner generator is gone', () => {
 
 test('version strings are consistent across engine, banner, asset and README', () => {
   const pkg = JSON.parse(read('package.json'));
-  const short = pkg.version.split('.').slice(0, 2).join('.');   // 4.1
+  const short = pkg.version.split('.').slice(0, 2).join('.');   // 5.0
   const tag = `v${short}`;
-  assert.equal(pkg.version, '4.1.0');
+  assert.equal(pkg.version, '5.0.0');
 
   assert.ok(read('docs/index.html').includes(tag), `docs/index.html missing ${tag}`);
   assert.ok(read('scripts/banner.html').includes(tag), `scripts/banner.html missing ${tag}`);
@@ -74,7 +81,7 @@ test('version strings are consistent across engine, banner, asset and README', (
 
   // No stale major/minor tags anywhere in the shipped sources
   for (const f of ['docs/index.html', 'scripts/banner.html', 'assets/pickaboo-banner.svg', 'README.md']) {
-    assert.ok(!/v3\.0|v4\.0/.test(read(f)), `${f} still references a stale version tag`);
+    assert.ok(!/v3\.0|v4\.0|v4\.1/.test(read(f)), `${f} still references a stale version tag`);
   }
 });
 
@@ -124,9 +131,14 @@ test('CI runs the test suite and regenerates assets with the Playwright renderer
 
 test('engine ships the accessibility affordances it claims', () => {
   const html = read('docs/index.html');
+  const jsFiles = walk('docs/js').filter(f => f.endsWith('.js'));
+  const bundle = [html, ...jsFiles.map(read)].join('\n');
+  for (const f of jsFiles) {
+    assert.ok(!/^\s*(import|export)\b/m.test(read(f)), `${f} must stay classic IIFE (no ES module import/export over file://)`);
+  }
   assert.ok(!html.includes('user-scalable=no'), 'pinch-zoom must not be disabled');
-  assert.ok(html.includes('prefers-reduced-motion'), 'engine must honour reduced-motion');
+  assert.ok(bundle.includes('prefers-reduced-motion'), 'engine must honour reduced-motion');
   assert.ok(html.includes('aria-pressed'), 'toggles must expose their state');
   assert.ok(html.includes('role="img"'), 'canvas must have an accessible role/label');
-  assert.ok(html.includes('pointerleave'), 'engine must drop the pointer when it leaves the viewport');
+  assert.ok(bundle.includes('pointerleave'), 'engine must drop the pointer when it leaves the viewport');
 });

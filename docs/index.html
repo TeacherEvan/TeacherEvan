@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>PickaBoo Engine v4.1 — Creative Physics & Sound Sandbox | TeacherEvan</title>
+<title>PickaBoo &amp; 150-Sprite Playground v5.0 — Creative Physics &amp; Sound Sandbox | TeacherEvan</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
 
@@ -19,19 +19,41 @@
     --sage:      #2d6a4f;
   }
 
-  body {
+  html, body {
     background: var(--bg);
     color: var(--parchment);
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    width: 100%;
     height: 100dvh;
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
     touch-action: none;
   }
 
+  #mainViewport {
+    position: relative;
+    width: 100vw;
+    height: 100dvh;
+    overflow: hidden;
+    touch-action: none;
+  }
+
+  .home-pager-track {
+    display: flex;
+    width: 200vw;
+    height: 100%;
+    will-change: transform;
+  }
+
+  .pager-page {
+    position: relative;
+    width: 100vw;
+    height: 100%;
+    flex: 0 0 100vw;
+    overflow: hidden;
+  }
+
   canvas {
-    position: fixed;
+    position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
@@ -41,7 +63,7 @@
 
   /* ── HUD ────────────────────────────────────────────────────────────── */
   header {
-    position: fixed; top: 0; left: 0; right: 0;
+    position: absolute; top: 0; left: 0; right: 0;
     display: flex; justify-content: space-between; align-items: center;
     padding: 12px 18px;
     z-index: 100; pointer-events: none;
@@ -106,9 +128,71 @@
     color: var(--gold);
   }
 
+  /* ── Profile Hub Card (Page 0 Overlay) ──────────────────────────────── */
+  .profile-hub-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 24px 18px 64px;
+    z-index: 50;
+    pointer-events: none;
+  }
+
+  .profile-hub-card {
+    background: rgba(26, 22, 48, 0.78);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 14px;
+    padding: 14px 18px;
+    max-width: 540px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+    pointer-events: auto;
+  }
+
+  .profile-hub-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--parchment);
+    margin-bottom: 4px;
+  }
+
+  .profile-hub-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .profile-hub-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .btn-explore-sprites {
+    background: linear-gradient(135deg, rgba(109, 40, 217, 0.85), rgba(212, 175, 55, 0.28));
+    border-color: var(--gold);
+    color: var(--parchment);
+    padding: 7px 14px;
+  }
+
+  .swipe-hint-chip {
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--gold);
+    opacity: 0.88;
+    letter-spacing: 0.3px;
+  }
+
   /* ── Telemetry / Sandbox Drawer ─────────────────────────────────────── */
   #telemetry {
-    position: fixed; bottom: 58px; right: 18px;
+    position: absolute; bottom: 58px; right: 18px;
     background: rgba(14,12,22,.92);
     border: 1px solid var(--border);
     border-radius: 10px;
@@ -127,10 +211,13 @@
   .tele-row { display: flex; justify-content: space-between; margin: 3px 0; color: var(--muted); }
   .tele-row span:last-child { color: var(--parchment); font-weight: bold; }
 
-  /* ── Footer guidance ────────────────────────────────────────────────── */
-  footer {
-    position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
-    background: rgba(26,22,48,.84);
+  /* ── Page 1 Playground Chrome & Navigation ──────────────────────────── */
+  .playground-hint {
+    position: absolute;
+    bottom: 52px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(26,22,48,.78);
     border: 1px solid var(--border);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
@@ -138,872 +225,239 @@
     padding: 6px 16px;
     font-size: 12px;
     color: var(--muted);
-    z-index: 100;
+    z-index: 80;
     pointer-events: none;
     white-space: nowrap;
-    box-shadow: 0 4px 16px rgba(0,0,0,.5);
   }
-  footer strong { color: var(--gold); }
+  .playground-hint strong { color: var(--gold); }
+
+  .side-screen-return-btn {
+    position: fixed;
+    top: 14px;
+    left: 18px;
+    z-index: 120;
+    background: rgba(26, 22, 48, 0.9);
+    border: 1px solid var(--gold);
+    color: var(--parchment);
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    box-shadow: 0 8px 24px rgba(0,0,0,.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .side-screen-return-btn[hidden] { display: none; }
+
+  .home-pager-dots {
+    position: fixed;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: rgba(26, 22, 48, 0.85);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 120;
+  }
+
+  .pager-dot {
+    width: 10px;
+    height: 10px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid var(--gold);
+    background: transparent;
+    cursor: pointer;
+    transition: transform .2s, background .2s;
+  }
+  .pager-dot.active {
+    background: var(--gold);
+    transform: scale(1.25);
+  }
 
   @media (max-width: 680px) {
     header { flex-direction: column; align-items: stretch; }
     .pill { justify-content: space-between; }
-    footer { font-size: 11px; padding: 5px 12px; width: 90%; text-align: center; white-space: normal; }
+    .profile-hub-overlay { padding: 14px 12px 60px; }
+    .playground-hint { font-size: 11px; width: 90%; text-align: center; white-space: normal; }
   }
 
   @media (prefers-reduced-motion: reduce) {
     .dot-live { animation: none; }
+    .home-pager-track { transition: none !important; }
   }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="pill">
-    <div class="dot-live" aria-hidden="true"></div>
-    <h1>PickaBoo Engine v4.1</h1>
-    <span class="stat" aria-label="Total detonations">💥 <strong id="cnt">0</strong></span>
-    <span class="combo-badge" id="comboDisplay" style="display:none">1x CHAIN</span>
-  </div>
-  <div class="pill controls">
-    <button id="btnSpawn" title="Add 5 more sprites">＋ Spawn</button>
-    <button id="btnChain" title="Detonate the sprite nearest your cursor immediately">💥 Detonate</button>
-    <button id="btnSandbox" title="Toggle Educator Physics Vector & Debug HUD" aria-pressed="false">🎓 Sandbox [D]</button>
-    <button id="btnSound" title="Toggle Synthesized Web Audio" aria-pressed="true">🔊 Sound</button>
-    <button id="btnMotion" title="Reduce camera shake, jitter and particle count" aria-pressed="false">🌀 Motion</button>
-    <a href="https://github.com/TeacherEvan" target="_blank" rel="noopener" class="btn-link" title="Visit TeacherEvan on GitHub">← GitHub Profile</a>
-  </div>
-</header>
+<div id="mainViewport">
+  <div id="homePagerTrack" class="home-pager-track">
+    <!-- Page 0: TeacherEvan Profile Hub + PickaBoo v5.0 -->
+    <section id="profileHubPage" class="pager-page" aria-hidden="false" aria-label="TeacherEvan Profile Hub and PickaBoo Sandbox">
+      <header>
+        <div class="pill">
+          <div class="dot-live" aria-hidden="true"></div>
+          <h1>PickaBoo Engine v5.0</h1>
+          <span class="stat" aria-label="Total detonations">💥 <strong id="cnt">0</strong></span>
+          <span class="combo-badge" id="comboDisplay" style="display:none">1x CHAIN</span>
+        </div>
+        <div class="pill controls">
+          <button id="btnSpawn" title="Add 5 more sprites">＋ Spawn</button>
+          <button id="btnChain" title="Detonate the sprite nearest your cursor immediately">💥 Detonate</button>
+          <button id="btnSandbox" title="Toggle Educator Physics Vector &amp; Debug HUD" aria-pressed="false">🎓 Sandbox [D]</button>
+          <button id="btnSound" title="Toggle Synthesized Web Audio" aria-pressed="true">🔊 Sound</button>
+          <button id="btnMotion" title="Reduce camera shake, jitter and particle count" aria-pressed="false">🌀 Motion</button>
+          <a href="https://github.com/TeacherEvan" target="_blank" rel="noopener" class="btn-link" title="Visit TeacherEvan on GitHub">← GitHub Profile</a>
+        </div>
+      </header>
 
-<div id="telemetry" role="region" aria-label="Engine telemetry">
-  <h3>⚡ Engine Telemetry</h3>
-  <div class="tele-row"><span>FPS</span><span id="telFps">60</span></div>
-  <div class="tele-row"><span>Sprites</span><span id="telSprites">0</span></div>
-  <div class="tele-row"><span>Particles</span><span id="telParticles">0</span></div>
-  <div class="tele-row"><span>Shockwaves</span><span id="telWaves">0</span></div>
-  <div class="tele-row"><span>Chain Combo</span><span id="telCombo">0x</span></div>
-  <div class="tele-row"><span>Vectors</span><span>ON</span></div>
+      <div id="telemetry" role="region" aria-label="Engine telemetry">
+        <h3>⚡ Engine Telemetry</h3>
+        <div class="tele-row"><span>FPS</span><span id="telFps">60</span></div>
+        <div class="tele-row"><span>Sprites</span><span id="telSprites">0</span></div>
+        <div class="tele-row"><span>Particles</span><span id="telParticles">0</span></div>
+        <div class="tele-row"><span>Shockwaves</span><span id="telWaves">0</span></div>
+        <div class="tele-row"><span>Chain Combo</span><span id="telCombo">0x</span></div>
+        <div class="tele-row"><span>Vectors</span><span>ON</span></div>
+      </div>
+
+      <canvas id="c" role="img" aria-label="PickaBoo interactive physics sandbox. Sprites chase your pointer and detonate four seconds after contact.">
+        Your browser does not support the HTML5 canvas element required by the PickaBoo Engine.
+      </canvas>
+
+      <div class="profile-hub-overlay">
+        <div class="profile-hub-card">
+          <div class="profile-hub-title">Ewaldt Botha · TeacherEvan (Full-Stack &amp; Creative Technologist)</div>
+          <div class="profile-hub-sub">"I build things that scale, things that teach, and things that explode."</div>
+          <div class="profile-hub-actions">
+            <button id="btnExploreSprites" class="btn-explore-sprites" title="Swipe left or click to enter the 150-Sprite Playground">✨ 150 Sprites Playground →</button>
+            <a href="https://github.com/TeacherEvan" target="_blank" rel="noopener" class="btn-link">GitHub: @TeacherEvan</a>
+          </div>
+          <div class="swipe-hint-chip">👈 Swipe left (or press →) for the 150-Sprite Interactive Playground</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Page 1: Cloned 150-Sprite Interactive Playground -->
+    <section id="spritePlaygroundPage" class="pager-page" inert aria-hidden="true" aria-label="150-Sprite Interactive Playground">
+      <canvas id="spriteCanvas" role="img" aria-label="150 interactive colorful sprites playground. Drag, fling, tap for ripples, or hold for a supernova."></canvas>
+      <div class="playground-hint"><strong>150 Sprites:</strong> Drag &amp; fling · Tap for ripples · Hold for singularity &amp; supernova</div>
+    </section>
+  </div>
 </div>
 
-<canvas id="c" role="img" aria-label="PickaBoo interactive physics sandbox. Sprites chase your pointer and detonate four seconds after contact.">
-  Your browser does not support the HTML5 canvas element required by the PickaBoo Engine.
-</canvas>
+<button id="sideScreenReturnBtn" class="side-screen-return-btn" hidden aria-label="Return to Profile Hub">← Profile</button>
 
-<footer><strong>Touch / move cursor</strong> near sprites → 4s countdown & <strong>chain-reaction detonation</strong>!</footer>
+<nav id="homePagerDots" class="home-pager-dots" aria-label="Playground Pages">
+  <button class="pager-dot active" data-page="0" aria-label="Profile Hub and PickaBoo"></button>
+  <button class="pager-dot" data-page="1" aria-label="150-Sprite Interactive Playground"></button>
+</nav>
 
+<script defer src="js/sprite-palette.js"></script>
+<script defer src="js/sprite-trail.js"></script>
+<script defer src="js/sprite-sparks.js"></script>
+<script defer src="js/sprite-engine.js"></script>
+<script defer src="js/ambient-soundscape.js"></script>
+<script defer src="js/home-pager.js"></script>
+<script defer src="js/pickaboo-engine.js"></script>
 <script>
-// ═══════════════════════════════════════════════════════════════════════════
-//  PickaBoo Engine v4.1 — deterministic, frame-rate independent physics
-// ═══════════════════════════════════════════════════════════════════════════
-const VERSION = '4.1';
+window.addEventListener('DOMContentLoaded', function () {
+  'use strict';
 
-// ── Canvas & Sizing ────────────────────────────────────────────────────────
-const canvas = document.getElementById('c');
-const ctx    = canvas.getContext('2d');
-let W = 0, H = 0;
-function resize() {
-  W = canvas.width  = window.innerWidth;
-  H = canvas.height = window.innerHeight;
-}
-window.addEventListener('resize', resize);
-resize();
+  const ns = window.TeacherEvan || {};
+  const spriteCanvas = document.getElementById('spriteCanvas');
+  const pagerTrack = document.getElementById('homePagerTrack');
+  const returnBtn = document.getElementById('sideScreenReturnBtn');
+  const exploreBtn = document.getElementById('btnExploreSprites');
+  const pagerDots = document.getElementById('homePagerDots');
 
-// ── roundRect polyfill (Safari < 16) ───────────────────────────────────────
-if (!CanvasRenderingContext2D.prototype.roundRect) {
-  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
-    const rad = Math.min(typeof r === 'number' ? r : 0, Math.abs(w) / 2, Math.abs(h) / 2);
-    this.moveTo(x + rad, y);
-    this.arcTo(x + w, y,     x + w, y + h, rad);
-    this.arcTo(x + w, y + h, x,     y + h, rad);
-    this.arcTo(x,     y + h, x,     y,     rad);
-    this.arcTo(x,     y,     x + w, y,     rad);
-    this.closePath();
-    return this;
+  const soundscape = new ns.AmbientSoundscape();
+  const spritePlayground = new ns.SpritePlayground(spriteCanvas);
+
+  spritePlayground.onInteraction(function (event) {
+    soundscape.handleInteraction(event);
+  });
+
+  if (window.__pickaboo && typeof window.__pickaboo.setCallbacks === 'function') {
+    window.__pickaboo.setCallbacks({
+      onSound: function (enabled) {
+        soundscape.setEnabled(enabled);
+      },
+      onMotion: function (reduced) {
+        spritePlayground.setReducedMotion(reduced);
+      }
+    });
+  }
+
+  function updatePagerUI(pos) {
+    if (returnBtn) returnBtn.hidden = pos === 0;
+    if (pagerDots) {
+      pagerDots.querySelectorAll('.pager-dot').forEach(function (dot) {
+        dot.classList.toggle('active', Number(dot.dataset.page) === pos);
+      });
+    }
+    if (pos === 1) {
+      if (window.__pickaboo) window.__pickaboo.pause();
+      spritePlayground.resume();
+    } else {
+      spritePlayground.pause();
+      soundscape.fadeOut(0.4);
+      if (window.__pickaboo) window.__pickaboo.resume();
+    }
+  }
+
+  const homePager = new ns.HomePager.HomePager(pagerTrack, {
+    container: document.getElementById('mainViewport'),
+    page0: document.getElementById('profileHubPage'),
+    page1: document.getElementById('spritePlaygroundPage'),
+    isSpriteTouchedFn: function (x, y) {
+      return Boolean(spritePlayground.hitTestSprite(x, y));
+    },
+    onGestureUnlock: function () {
+      soundscape.unlockFromGesture();
+    },
+    onPageChange: updatePagerUI
+  });
+
+  if (exploreBtn) {
+    exploreBtn.addEventListener('click', function () {
+      soundscape.unlockFromGesture();
+      homePager.goTo(1, true);
+    });
+  }
+
+  if (returnBtn) {
+    returnBtn.addEventListener('click', function () {
+      homePager.goTo(0, true);
+    });
+  }
+
+  if (pagerDots) {
+    pagerDots.addEventListener('click', function (e) {
+      const dot = e.target.closest('.pager-dot');
+      if (dot) {
+        const targetPage = Number(dot.dataset.page);
+        if (targetPage === 1) soundscape.unlockFromGesture();
+        homePager.goTo(targetPage, true);
+      }
+    });
+  }
+
+  window.__pager = {
+    getPosition: function () { return homePager.getPosition(); },
+    goTo: function (pos, smooth) { return homePager.goTo(pos, smooth); }
   };
-}
 
-// ── Engine constants (physics in SI-ish units: px, seconds) ────────────────
-const PHYS_DT        = 1 / 60;   // fixed simulation step
-const ATTRACT_RADIUS = 380;      // px  — steering detection radius
-const ATTRACT_ACCEL  = 2600;     // px/s² at the centre of the falloff
-const DAMPING_K      = 3.7;      // 1/s  — exponential velocity decay
-const MAX_SPEED      = 720;      // px/s — hard velocity clamp
-const WANDER_ACCEL   = 90;       // px/s² — idle drift
-const CONTACT_RADIUS = 46;       // px  — detonation trigger
-const BLAST_RADIUS   = 260;      // px  — chain-reaction radius
-const BLAST_IMPULSE  = 900;      // px/s — instant chain impulse
-const BOUNCE         = 0.85;     // restitution coefficient
-const COUNTDOWN_TIME  = 4.0;      // s
-const CHAIN_TIME     = 1.4;      // s — accelerated countdown on chain hit
-const RESPAWN_DELAY  = 2.5;      // s
-const MAX_PARTICLES  = 900;      // global particle budget (perf ceiling)
-const GRAVITY        = 500;      // px/s²
-const WAVE_SPEED     = 900;      // px/s
-
-// ── Synthesized Spatial Web Audio ───────────────────────────────────────────
-let actx = null, soundOn = true;
-function initAudio() {
-  if (!actx) {
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (AudioContextClass) actx = new AudioContextClass();
-  }
-  if (actx && actx.state === 'suspended') actx.resume();
-}
-['pointerdown', 'keydown', 'touchstart'].forEach(ev => {
-  window.addEventListener(ev, initAudio, { once: true, passive: true });
+  window.__sprites = {
+    snapshot: function () { return spritePlayground.getSnapshot(); }
+  };
 });
-
-function createPanner(pan = 0) {
-  if (!actx) return null;
-  if (actx.createStereoPanner) {
-    const panner = actx.createStereoPanner();
-    panner.pan.setValueAtTime(Math.max(-1, Math.min(1, pan)), actx.currentTime);
-    return panner;
-  }
-  return null;
-}
-
-function beep(freq = 520, dur = 0.08, vol = 0.08, pan = 0) {
-  if (!soundOn || !actx) return;
-  try {
-    const o = actx.createOscillator(), g = actx.createGain();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(freq, actx.currentTime);
-    g.gain.setValueAtTime(vol, actx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
-
-    const panner = createPanner(pan);
-    if (panner) {
-      o.connect(g); g.connect(panner); panner.connect(actx.destination);
-    } else {
-      o.connect(g); g.connect(actx.destination);
-    }
-    o.start(); o.stop(actx.currentTime + dur);
-  } catch(_) {}
-}
-
-function boom(pan = 0, intensity = 1.0) {
-  if (!soundOn || !actx) return;
-  try {
-    const now = actx.currentTime;
-    const panner = createPanner(pan);
-    const dest = panner || actx.destination;
-    if (panner) panner.connect(actx.destination);
-
-    // 1. Sub-bass thump
-    const subOsc = actx.createOscillator(), subGain = actx.createGain();
-    subOsc.type = 'sine';
-    subOsc.frequency.setValueAtTime(140 * intensity, now);
-    subOsc.frequency.exponentialRampToValueAtTime(28, now + 0.35);
-    subGain.gain.setValueAtTime(0.4 * intensity, now);
-    subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
-    subOsc.connect(subGain); subGain.connect(dest);
-    subOsc.start(); subOsc.stop(now + 0.4);
-
-    // 2. Filtered noise burst
-    const len = Math.floor(actx.sampleRate * 0.45);
-    const buf = actx.createBuffer(1, len, actx.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) {
-      d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (actx.sampleRate * 0.08));
-    }
-    const noise = actx.createBufferSource();
-    noise.buffer = buf;
-    const filter = actx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(450 * intensity, now);
-    filter.frequency.linearRampToValueAtTime(50, now + 0.4);
-    const noiseGain = actx.createGain();
-    noiseGain.gain.setValueAtTime(0.3 * intensity, now);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
-    noise.connect(filter); filter.connect(noiseGain); noiseGain.connect(dest);
-    noise.start();
-  } catch(_) {}
-}
-
-const btnSound = document.getElementById('btnSound');
-btnSound.addEventListener('click', () => {
-  initAudio();
-  soundOn = !soundOn;
-  btnSound.textContent = soundOn ? '🔊 Sound' : '🔇 Muted';
-  btnSound.setAttribute('aria-pressed', String(soundOn));
-});
-
-// ── Multi-Pointer Management ────────────────────────────────────────────────
-const pointers = new Map();
-function updatePointer(e) {
-  initAudio();
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-}
-function removePointer(e) {
-  // Only remove touch/pen pointers on release; keep mouse active on canvas
-  if (e.pointerType !== 'mouse') {
-    pointers.delete(e.pointerId);
-  }
-}
-function dropStalePointer(e) {
-  // The cursor left the viewport entirely (relatedTarget === null) — drop the
-  // reticle so sprites stop chasing a phantom point.
-  if (e && e.relatedTarget === null && e.pointerId !== undefined) {
-    pointers.delete(e.pointerId);
-  }
-}
-function dropMousePointer(e) {
-  // pointerleave on <html> means the cursor left the window.
-  if (e && e.pointerId !== undefined) {
-    pointers.delete(e.pointerId);
-  } else {
-    pointers.clear();
-  }
-}
-window.addEventListener('pointerdown', updatePointer);
-window.addEventListener('pointermove', updatePointer);
-window.addEventListener('pointerup', removePointer);
-window.addEventListener('pointercancel', removePointer);
-window.addEventListener('pointerout', dropStalePointer);
-document.documentElement.addEventListener('pointerleave', dropMousePointer);
-window.addEventListener('mouseout', e => { if (e.relatedTarget === null) pointers.clear(); });
-window.addEventListener('blur', () => pointers.clear());
-document.addEventListener('visibilitychange', () => { if (document.hidden) pointers.clear(); });
-
-// ── Motion preferences ──────────────────────────────────────────────────────
-const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-let reduceMotion = motionQuery.matches;
-const btnMotion = document.getElementById('btnMotion');
-function syncMotionUI() {
-  btnMotion.setAttribute('aria-pressed', String(reduceMotion));
-  btnMotion.classList.toggle('active', reduceMotion);
-  btnMotion.textContent = reduceMotion ? '🌀 Motion: Reduced' : '🌀 Motion';
-}
-btnMotion.addEventListener('click', () => { reduceMotion = !reduceMotion; syncMotionUI(); });
-motionQuery.addEventListener?.('change', e => { reduceMotion = e.matches; syncMotionUI(); });
-syncMotionUI();
-
-// ── Dark Academia Color Palettes ────────────────────────────────────────────
-const COLORS = ['#6d28d9', '#b91c1c', '#d4af37', '#c27a30', '#2d6a4f', '#7b3f6e', '#1e6b8c', '#7c3d12'];
-const FW_COLORS = ['#d4af37', '#b91c1c', '#6d28d9', '#2d6a4f', '#c27a30', '#3b82f6', '#ec4899', '#f5e6b4', '#14b8a6', '#f97316'];
-
-// ── Engine State ─────────────────────────────────────────────────────────────
-const sprites    = [];
-const particles  = [];
-const waves      = [];
-const texts      = [];
-let totalBoom    = 0;
-let comboCount   = 0;
-let lastBoomTime = 0;
-let sandboxMode  = false;
-let screenTrauma = 0; // Camera shake intensity (0 to 1)
-
-// ── PickaBoo Sprite ──────────────────────────────────────────────────────────
-class PickaBoo {
-  constructor(x, y) {
-    this.x = x ?? Math.random() * (W - 160) + 80;
-    this.y = y ?? Math.random() * (H - 160) + 80;
-    this.vx = (Math.random() - 0.5) * 40;
-    this.vy = (Math.random() - 0.5) * 40;
-    this.size = 22 + Math.random() * 5;
-    this.color = COLORS[Math.floor(Math.random() * COLORS.length)];
-    this.phase = Math.random() * Math.PI * 2;
-    this.state = 'idle'; // 'idle' | 'countdown' | 'dead'
-    this.timer = COUNTDOWN_TIME;
-    this.prevBeepSec = 5;
-    this.jitter = 0;
-    this.targetPointer = null;
-  }
-
-  step(dt) {
-    this.phase += dt * 3.8;
-
-    if (this.state === 'idle') {
-      // Find nearest active pointer
-      let nearestDist = Infinity;
-      let targetPt = null;
-      pointers.forEach(pt => {
-        const d = Math.hypot(pt.x - this.x, pt.y - this.y);
-        if (d < nearestDist) { nearestDist = d; targetPt = pt; }
-      });
-      this.targetPointer = targetPt;
-
-      let ax = 0, ay = 0;
-
-      if (targetPt && nearestDist < ATTRACT_RADIUS && nearestDist > 1e-6) {
-        // Steering impulse — falls off linearly with distance
-        const f = (ATTRACT_RADIUS - nearestDist) / ATTRACT_RADIUS;
-        const strength = ATTRACT_ACCEL * f;
-        ax += ((targetPt.x - this.x) / nearestDist) * strength;
-        ay += ((targetPt.y - this.y) / nearestDist) * strength;
-
-        if (nearestDist < CONTACT_RADIUS) {
-          this.triggerCountdown();
-        }
-      }
-
-      // Gentle wandering
-      ax += Math.cos(this.phase) * WANDER_ACCEL;
-      ay += Math.sin(this.phase) * WANDER_ACCEL;
-
-      this.vx += ax * dt;
-      this.vy += ay * dt;
-
-      // Exponential damping — frame-rate independent (0.94^60 ≈ exp(-3.72s))
-      const k = Math.exp(-DAMPING_K * dt);
-      this.vx *= k;
-      this.vy *= k;
-
-      // Hard speed clamp
-      const sp = Math.hypot(this.vx, this.vy);
-      if (sp > MAX_SPEED) {
-        this.vx = (this.vx / sp) * MAX_SPEED;
-        this.vy = (this.vy / sp) * MAX_SPEED;
-      }
-
-      this.x += this.vx * dt;
-      this.y += this.vy * dt;
-
-      // Screen boundary bounces
-      if (this.x < this.size)        { this.x = this.size;        this.vx = Math.abs(this.vx) * BOUNCE; }
-      if (this.x > W - this.size)    { this.x = W - this.size;    this.vx = -Math.abs(this.vx) * BOUNCE; }
-      if (this.y < this.size)        { this.y = this.size;        this.vy = Math.abs(this.vy) * BOUNCE; }
-      if (this.y > H - this.size)    { this.y = H - this.size;    this.vy = -Math.abs(this.vy) * BOUNCE; }
-
-    } else if (this.state === 'countdown') {
-      this.timer -= dt;
-      const sec = Math.ceil(this.timer);
-      if (sec !== this.prevBeepSec && sec >= 1) {
-        this.prevBeepSec = sec;
-        const pan = (this.x / W) * 2 - 1;
-        beep(360 + (4 - sec) * 230, 0.08, 0.1, pan);
-      }
-      this.jitter = reduceMotion ? 0 : Math.pow((COUNTDOWN_TIME - this.timer) / COUNTDOWN_TIME, 2) * 14;
-      if (this.timer <= 0) this.explode();
-    }
-  }
-
-  triggerCountdown(fastTrack = false) {
-    if (this.state === 'countdown' && !fastTrack) return;
-    this.state = 'countdown';
-    this.timer = fastTrack
-      ? Math.min(this.timer, CHAIN_TIME) // Accelerate countdown on chain reaction!
-      : COUNTDOWN_TIME;
-    this.prevBeepSec = 5;
-    const pan = (this.x / W) * 2 - 1;
-    beep(440, 0.12, 0.09, pan);
-  }
-
-  explode() {
-    this.state = 'dead';
-    totalBoom++;
-    document.getElementById('cnt').textContent = totalBoom;
-
-    // Combo system
-    const now = performance.now();
-    if (now - lastBoomTime < 1400) {
-      comboCount++;
-    } else {
-      comboCount = 1;
-    }
-    lastBoomTime = now;
-
-    // Visual camera shake
-    screenTrauma = Math.min(1.0, screenTrauma + 0.35);
-
-    const pan = (this.x / W) * 2 - 1;
-    boom(pan, Math.min(2.0, 1.0 + comboCount * 0.2));
-
-    // Shockwaves (Kinetic blast)
-    waves.push({ x: this.x, y: this.y, r: 8, maxR: 300, col: '#d4af37', a: 1, pan });
-    waves.push({ x: this.x, y: this.y, r: 4, maxR: 200, col: '#b91c1c', a: 1, pan });
-    waves.push({ x: this.x, y: this.y, r: 2, maxR: 120, col: '#6d28d9', a: 1, pan });
-
-    // Chain Reaction: Shockwave imparts kinetic impulse and panic to nearby sprites
-    sprites.forEach(other => {
-      if (other === this || other.state === 'dead') return;
-      const dx = other.x - this.x, dy = other.y - this.y;
-      const dist = Math.hypot(dx, dy);
-      if (dist < BLAST_RADIUS && dist > 1e-6) {
-        const force = ((BLAST_RADIUS - dist) / BLAST_RADIUS) * BLAST_IMPULSE;
-        other.vx += (dx / dist) * force;
-        other.vy += (dy / dist) * force;
-        // Trigger chain countdown panic
-        other.triggerCountdown(true);
-      }
-    });
-
-    // Firework particles with spark trails
-    const motionScale = reduceMotion ? 0.45 : 1;
-    const pCount = Math.round((90 + Math.min(60, comboCount * 15)) * motionScale);
-    for (let i = 0; i < pCount; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const spd = Math.random() * 700 + 200;
-      particles.push({
-        x: this.x, y: this.y,
-        vx: Math.cos(angle) * spd,
-        vy: Math.sin(angle) * spd,
-        size: Math.random() * 7 + 3,
-        col: FW_COLORS[Math.floor(Math.random() * FW_COLORS.length)],
-        life: 1.0,
-        decay: 0.9 + Math.random() * 0.7,
-        trail: [],
-        maxTrail: 6,
-        isStar: Math.random() > 0.55
-      });
-    }
-    // Enforce the global particle budget (drop oldest first)
-    if (particles.length > MAX_PARTICLES) {
-      particles.splice(0, particles.length - MAX_PARTICLES);
-    }
-
-    // Floating text with combo callouts
-    const comboLabel = comboCount > 1 ? `💥 ${comboCount}x COMBO!` : '💥 BANG!';
-    texts.push({
-      x: this.x,
-      y: this.y - 20,
-      text: comboLabel,
-      a: 1.0,
-      col: comboCount > 2 ? '#ff4b7a' : '#d4af37',
-      vy: -420
-    });
-
-    // Update combo UI
-    const comboDisplay = document.getElementById('comboDisplay');
-    if (comboCount > 1) {
-      comboDisplay.style.display = 'inline-block';
-      comboDisplay.textContent = `${comboCount}x CHAIN REACTION!`;
-    }
-
-    // Respawn after RESPAWN_DELAY
-    setTimeout(() => {
-      this.x = Math.random() * (W - 140) + 70;
-      this.y = Math.random() * (H - 140) + 70;
-      this.vx = (Math.random() - 0.5) * 40;
-      this.vy = (Math.random() - 0.5) * 40;
-      this.color = COLORS[Math.floor(Math.random() * COLORS.length)];
-      this.state = 'idle';
-      this.jitter = 0;
-    }, RESPAWN_DELAY * 1000);
-  }
-
-  draw() {
-    if (this.state === 'dead') return;
-
-    const jx = this.state === 'countdown' ? (Math.random() - 0.5) * this.jitter : 0;
-    const jy = this.state === 'countdown' ? (Math.random() - 0.5) * this.jitter : 0;
-    const cx = this.x + jx;
-    const cy = this.y + jy;
-    const s  = this.size;
-
-    const col = this.state === 'countdown'
-      ? (this.timer > 2.6 ? '#6d28d9' : this.timer > 1.2 ? '#c27a30' : '#b91c1c')
-      : this.color;
-
-    ctx.save();
-
-    // ── Sandbox Mode Overlays (Educator view) ─────────────────────────────────
-    if (sandboxMode) {
-      // Velocity vector
-      ctx.strokeStyle = '#d4af37';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(this.x, this.y);
-      ctx.lineTo(this.x + this.vx * 0.12, this.y + this.vy * 0.12);
-      ctx.stroke();
-
-      // Attraction detection ring (380px steering radius)
-      ctx.strokeStyle = 'rgba(109,40,217,0.16)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, ATTRACT_RADIUS, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Contact / detonation ring (46px)
-      ctx.strokeStyle = 'rgba(212,175,55,0.22)';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, CONTACT_RADIUS, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    // Glow
-    ctx.shadowColor = col;
-    ctx.shadowBlur  = this.state === 'countdown' ? 30 : 14;
-
-    // Magnetic dashed leash during countdown
-    if (this.state === 'countdown' && this.targetPointer) {
-      ctx.setLineDash([5, 5]);
-      ctx.strokeStyle = col;
-      ctx.lineWidth = 1.5;
-      ctx.globalAlpha = 0.55;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(this.targetPointer.x, this.targetPointer.y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.globalAlpha = 1;
-    }
-
-    // Ghost body
-    ctx.fillStyle = col;
-    ctx.beginPath();
-    ctx.arc(cx, cy - s * 0.2, s * 0.82, Math.PI, 0, false);
-    ctx.lineTo(cx + s * 0.82, cy + s * 0.6);
-    const tw = (s * 1.64) / 3;
-    for (let i = 2; i >= 0; i--) {
-      const fx = cx - s * 0.82 + i * tw;
-      ctx.arc(fx + tw / 2, cy + s * 0.6, tw / 2, 0, Math.PI, false);
-    }
-    ctx.closePath();
-    ctx.fill();
-
-    // 3D Specular highlight arc
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-    ctx.lineWidth = Math.max(1.5, s * 0.1);
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.arc(cx, cy - s * 0.2, s * 0.62, Math.PI * 1.15, Math.PI * 1.48, false);
-    ctx.stroke();
-    ctx.restore();
-
-    // Antenna stalk & orb
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = '#f5e6b4';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - s);
-    ctx.lineTo(cx, cy - s - 9);
-    ctx.stroke();
-    ctx.fillStyle = '#d4af37';
-    ctx.beginPath();
-    ctx.arc(cx, cy - s - 12, 4.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Eyes
-    const ex = s * 0.38, ey = cy - s * 0.12, er = Math.max(2.5, s * 0.20);
-    if (this.state === 'countdown') {
-      ctx.fillStyle = '#f5e6b4';
-      [-1, 1].forEach(sign => {
-        ctx.beginPath();
-        ctx.arc(cx + sign * ex, ey, er * 1.35, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#0e0c16';
-        ctx.beginPath();
-        ctx.arc(cx + sign * ex, ey, 2.2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#f5e6b4';
-      });
-      // Shock O-mouth
-      ctx.fillStyle = '#0e0c16';
-      ctx.beginPath();
-      ctx.arc(cx, cy + s * 0.22, 4, 0, Math.PI * 2);
-      ctx.fill();
-
-      // HUD countdown pill
-      const hw = 152, hh = 26, hx = cx - hw / 2, hy = cy - s - 52;
-      ctx.fillStyle = 'rgba(14,12,22,0.92)';
-      ctx.strokeStyle = col;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.roundRect(hx, hy, hw, hh, 7);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = '#f5e6b4';
-      ctx.font = 'bold 12px monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`💥 DETONATE: ${Math.max(0, this.timer).toFixed(2)}s`, cx, hy + 13);
-
-    } else {
-      ctx.fillStyle = '#0e0c16';
-      [-1, 1].forEach(sign => {
-        ctx.beginPath();
-        ctx.arc(cx + sign * ex, ey, er, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#f5e6b4';
-        ctx.beginPath();
-        ctx.arc(cx + sign * ex - 1.5, ey - er + 1.5, 1.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#b03060'; // cheek blush
-        ctx.beginPath();
-        ctx.arc(cx + sign * ex, ey + 5, 3, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#0e0c16';
-      });
-      // Smile
-      ctx.strokeStyle = '#0e0c16';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(cx, cy + s * 0.1, 4, 0, Math.PI, false);
-      ctx.stroke();
-    }
-
-    ctx.restore();
-  }
-}
-
-// ── Spawn Sprites ─────────────────────────────────────────────────────────────
-function spawn(n = 6) {
-  for (let i = 0; i < n; i++) sprites.push(new PickaBoo());
-}
-spawn(12);
-
-document.getElementById('btnSpawn').addEventListener('click', () => spawn(5));
-document.getElementById('btnChain').addEventListener('click', () => {
-  // Detonate the sprite closest to the pointer, else the closest to screen centre
-  const anchor = [...pointers.values()][0] || { x: W / 2, y: H / 2 };
-  let best = null, bestDist = Infinity;
-  sprites.forEach(s => {
-    if (s.state !== 'idle') return;
-    const d = Math.hypot(s.x - anchor.x, s.y - anchor.y);
-    if (d < bestDist) { bestDist = d; best = s; }
-  });
-  if (best) best.triggerCountdown(true);
-});
-
-// ── Sandbox Mode Toggle ───────────────────────────────────────────────────────
-const btnSandbox = document.getElementById('btnSandbox');
-const telemetryPanel = document.getElementById('telemetry');
-function toggleSandbox() {
-  sandboxMode = !sandboxMode;
-  btnSandbox.classList.toggle('active', sandboxMode);
-  btnSandbox.setAttribute('aria-pressed', String(sandboxMode));
-  telemetryPanel.classList.toggle('open', sandboxMode);
-}
-btnSandbox.addEventListener('click', toggleSandbox);
-window.addEventListener('keydown', e => {
-  if (e.key === 'd' || e.key === 'D') toggleSandbox();
-});
-
-// ── Helper: Draw Star Particle ────────────────────────────────────────────────
-function drawStar(x, y, r, col, alpha = 1) {
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.fillStyle = col;
-  ctx.beginPath();
-  for (let i = 0; i < 10; i++) {
-    const radius = i % 2 === 0 ? r : r * 0.42;
-    const angle  = i * Math.PI / 5 - Math.PI / 2;
-    i === 0
-      ? ctx.moveTo(x + radius * Math.cos(angle), y + radius * Math.sin(angle))
-      : ctx.lineTo(x + radius * Math.cos(angle), y + radius * Math.sin(angle));
-  }
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
-}
-
-// ── Fixed-step simulation + render loop ─────────────────────────────────────
-function stepPhysics(dt) {
-  // Sprites
-  for (const s of sprites) s.step(dt);
-
-  // Particles & glowing trails
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i];
-    p.trail.unshift({ x: p.x, y: p.y });
-    if (p.trail.length > p.maxTrail) p.trail.pop();
-    p.vy += GRAVITY * dt;
-    p.vx *= Math.exp(-1.2 * dt);
-    p.x  += p.vx * dt;
-    p.y  += p.vy * dt;
-    p.life -= p.decay * dt;
-    if (p.life <= 0) { particles.splice(i, 1); continue; }
-  }
-
-  // Shockwaves
-  for (let i = waves.length - 1; i >= 0; i--) {
-    const w = waves[i];
-    w.r += WAVE_SPEED * dt;
-    w.a = Math.max(0, 1 - w.r / w.maxR);
-    if (w.a < 0.02) { waves.splice(i, 1); continue; }
-  }
-
-  // Floating text popups
-  for (let i = texts.length - 1; i >= 0; i--) {
-    const t = texts[i];
-    t.y += t.vy * dt;
-    t.a -= dt * 0.7;
-    if (t.a <= 0) { texts.splice(i, 1); continue; }
-  }
-}
-
-function render() {
-  ctx.save();
-
-  // Dark background
-  ctx.fillStyle = '#0e0c16';
-  ctx.fillRect(-20, -20, W + 40, H + 40);
-
-  // Subtle coordinate grid
-  ctx.fillStyle = '#1c1830';
-  for (let gx = 20; gx < W; gx += 36) {
-    for (let gy = 20; gy < H; gy += 36) {
-      ctx.fillRect(gx, gy, 2, 2);
-    }
-  }
-
-  // Shockwaves
-  for (const w of waves) {
-    ctx.save();
-    ctx.globalAlpha = w.a;
-    ctx.strokeStyle = w.col;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(w.x, w.y, w.r, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  // Particles & glowing trails
-  for (const p of particles) {
-    // Trail
-    for (let ti = 0; ti < p.trail.length; ti++) {
-      const pt = p.trail[ti];
-      const ta = p.life * (1 - ti / p.trail.length) * 0.5;
-      if (ta < 0.04) continue;
-      ctx.globalAlpha = ta;
-      ctx.fillStyle = p.col;
-      const tr = Math.max(1, p.size * 0.4 * (1 - ti / p.trail.length));
-      ctx.beginPath();
-      ctx.arc(pt.x, pt.y, tr, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-
-    // Head
-    if (p.isStar) {
-      drawStar(p.x, p.y, p.size * p.life, p.col, p.life);
-    } else {
-      ctx.globalAlpha = p.life;
-      ctx.fillStyle = p.col;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size * p.life * 0.7, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-    }
-  }
-
-  // Floating text popups
-  for (const t of texts) {
-    ctx.save();
-    ctx.globalAlpha = t.a;
-    ctx.font = 'bold 22px system-ui, sans-serif';
-    ctx.fillStyle = t.col;
-    ctx.textAlign = 'center';
-    ctx.shadowColor = t.col;
-    ctx.shadowBlur = 12;
-    ctx.fillText(t.text, t.x, t.y);
-    ctx.restore();
-  }
-
-  // Sprites
-  for (const s of sprites) s.draw();
-
-  // Pointer Reticles
-  pointers.forEach(pt => {
-    ctx.save();
-    ctx.strokeStyle = '#d4af37';
-    ctx.lineWidth = 1.5;
-    const r = 14;
-    ctx.beginPath();
-    ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
-    ctx.stroke();
-
-    [[r + 4, 0], [-(r + 4), 0], [0, r + 4], [0, -(r + 4)]].forEach(([dx, dy]) => {
-      ctx.beginPath();
-      ctx.moveTo(pt.x + dx * 0.3, pt.y + dy * 0.3);
-      ctx.lineTo(pt.x + dx, pt.y + dy);
-      ctx.stroke();
-    });
-    ctx.fillStyle = '#d4af37';
-    ctx.beginPath();
-    ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  });
-
-  ctx.restore();
-}
-
-let last = performance.now();
-let fpsSmooth = 60;
-let accumulator = 0;
-let physicsSteps = 0;
-
-function frame(now) {
-  // Real elapsed time (clamped to survive tab switches / breakpoints)
-  let realDt = Math.min((now - last) / 1000, 0.25);
-  last = now;
-
-  // FPS smoothing on real time
-  fpsSmooth = fpsSmooth * 0.95 + (1 / Math.max(realDt, 0.001)) * 0.05;
-
-  // Fixed-step accumulator — identical simulation speed at 30 / 60 / 120 Hz
-  accumulator += realDt;
-  let steps = 0;
-  while (accumulator >= PHYS_DT && steps < 8) {
-    stepPhysics(PHYS_DT);
-    accumulator -= PHYS_DT;
-    steps++;
-    physicsSteps++;
-  }
-  if (steps === 8) accumulator = 0; // drop backlog rather than spiral
-
-  // Camera trauma shake (applied to the render only, never to the simulation)
-  ctx.save();
-  if (screenTrauma > 0) {
-    screenTrauma = Math.max(0, screenTrauma - realDt * 1.5);
-    if (!reduceMotion) {
-      const shakeMag = Math.pow(screenTrauma, 2) * 16;
-      ctx.translate((Math.random() - 0.5) * shakeMag, (Math.random() - 0.5) * shakeMag);
-    }
-  }
-
-  render();
-
-  ctx.restore(); // Restore camera shake
-
-  // Reset combo banner after timeout
-  if (now - lastBoomTime > 1800) {
-    document.getElementById('comboDisplay').style.display = 'none';
-  }
-
-  // Update Telemetry Panel
-  if (sandboxMode) {
-    document.getElementById('telFps').textContent = Math.round(fpsSmooth);
-    document.getElementById('telSprites').textContent = sprites.length;
-    document.getElementById('telParticles').textContent = particles.length;
-    document.getElementById('telWaves').textContent = waves.length;
-    document.getElementById('telCombo').textContent = `${comboCount}x`;
-  }
-
-  requestAnimationFrame(frame);
-}
-requestAnimationFrame(frame);
-
-// ── Test / diagnostics hook ──────────────────────────────────────────────────
-window.__pickaboo = {
-  version: VERSION,
-  constants: { PHYS_DT, ATTRACT_RADIUS, ATTRACT_ACCEL, MAX_SPEED, MAX_PARTICLES, COUNTDOWN_TIME },
-  snapshot() {
-    return {
-      version: VERSION,
-      sprites: sprites.length,
-      particles: particles.length,
-      waves: waves.length,
-      booms: totalBoom,
-      combo: comboCount,
-      pointers: pointers.size,
-      sandbox: sandboxMode,
-      reduceMotion,
-      fps: Math.round(fpsSmooth),
-      physicsSteps,
-      positions: sprites.map(s => ({ x: s.x, y: s.y, vx: s.vx, vy: s.vy, state: s.state }))
-    };
-  }
-};
 </script>
 </body>
 </html>

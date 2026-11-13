@@ -71,7 +71,7 @@ test('engine boots clean and exposes its state', async t => {
   const { context, page, errors } = await openEngine(browser, { initScript: SEED_SCRIPT });
   try {
     const snap = await page.evaluate(() => window.__pickaboo.snapshot());
-    assert.equal(snap.version, '4.1');
+    assert.equal(snap.version, '5.0');
     assert.ok(snap.sprites > 0, 'engine should spawn sprites on load');
     assert.deepEqual(errors, [], `engine produced errors: ${errors.join(' | ')}`);
   } finally {
@@ -261,6 +261,138 @@ test('HUD toggles expose and apply their state', async t => {
     await sound.click();
     assert.equal(await sound.getAttribute('aria-pressed'), 'false');
 
+    assert.deepEqual(errors, []);
+  } finally {
+    await context.close();
+  }
+});
+
+test('swipe left opens the 150-sprite interactive playground on mobile', async t => {
+  if (!browser) {
+    if (process.env.CI) assert.fail('Chromium is not installed in CI');
+    t.skip('Chromium is not installed');
+    return;
+  }
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push(String(e)));
+  page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+  await page.addInitScript(SEED_SCRIPT);
+  await page.goto(ENGINE_URL);
+  await page.waitForTimeout(400);
+  try {
+    await page.mouse.move(330, 420);
+    await page.mouse.down();
+    await page.mouse.move(70, 420, { steps: 10 });
+    await page.mouse.up();
+    await page.waitForTimeout(450);
+
+    const state = await page.evaluate(() => ({
+      pos: window.__pager.getPosition(),
+      sprites: window.__sprites.snapshot(),
+      returnHidden: document.getElementById('sideScreenReturnBtn').hidden,
+      page0Inert: document.getElementById('profileHubPage').hasAttribute('inert'),
+      page0AriaHidden: document.getElementById('profileHubPage').getAttribute('aria-hidden'),
+      page1AriaHidden: document.getElementById('spritePlaygroundPage').getAttribute('aria-hidden'),
+    }));
+    assert.equal(state.pos, 1, 'swiping left should move HomePager to page 1');
+    assert.equal(state.sprites.spriteCount, 150, 'playground must spawn exactly 150 sprites');
+    assert.ok(state.sprites.hitRadius >= 14 && state.sprites.hitRadius <= 24,
+      `hitRadius ${state.sprites.hitRadius} should be density-scaled in [14, 24]`);
+    assert.equal(state.returnHidden, false, 'return button should be visible on page 1');
+    assert.equal(state.page0Inert, true, 'page 0 must become inert when offscreen');
+    assert.equal(state.page0AriaHidden, 'true');
+    assert.equal(state.page1AriaHidden, 'false');
+    assert.deepEqual(errors, []);
+  } finally {
+    await context.close();
+  }
+});
+
+test('multi-modal navigation and return affordances work on desktop', async t => {
+  if (!browser) {
+    if (process.env.CI) assert.fail('Chromium is not installed in CI');
+    t.skip('Chromium is not installed');
+    return;
+  }
+  const { context, page, errors } = await openEngine(browser, { initScript: SEED_SCRIPT });
+  try {
+    await page.locator('#btnExploreSprites').click();
+    await page.waitForTimeout(420);
+    assert.equal(await page.evaluate(() => window.__pager.getPosition()), 1);
+
+    await page.locator('#sideScreenReturnBtn').click();
+    await page.waitForTimeout(420);
+    assert.equal(await page.evaluate(() => window.__pager.getPosition()), 0);
+
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(420);
+    assert.equal(await page.evaluate(() => window.__pager.getPosition()), 1);
+
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(420);
+    assert.equal(await page.evaluate(() => window.__pager.getPosition()), 0);
+
+    await page.locator('.pager-dot[data-page="1"]').click();
+    await page.waitForTimeout(420);
+    assert.equal(await page.evaluate(() => window.__pager.getPosition()), 1);
+
+    assert.deepEqual(errors, []);
+  } finally {
+    await context.close();
+  }
+});
+
+test('150-sprite playground supports tap ripple, hold supernova, and grab/fling with finite coords', async t => {
+  if (!browser) {
+    if (process.env.CI) assert.fail('Chromium is not installed in CI');
+    t.skip('Chromium is not installed');
+    return;
+  }
+  const { context, page, errors } = await openEngine(browser, { initScript: SEED_SCRIPT });
+  try {
+    await page.locator('#btnExploreSprites').click();
+    await page.waitForTimeout(420);
+
+    const emptyPt = await page.evaluate(() => {
+      const snap = window.__sprites.snapshot();
+      for (let x = 100; x < 1100; x += 40) {
+        for (let y = 100; y < 700; y += 40) {
+          if (!snap.positions.some(p => Math.hypot(p.x - x, p.y - y) <= snap.hitRadius + 6)) {
+            return { x, y };
+          }
+        }
+      }
+      return { x: 600, y: 400 };
+    });
+
+    await page.mouse.click(emptyPt.x, emptyPt.y);
+    await page.waitForTimeout(50);
+    const afterTap = await page.evaluate(() => window.__sprites.snapshot());
+    assert.ok(afterTap.ripples >= 1, 'quick tap should spawn a ripple');
+
+    await page.mouse.move(emptyPt.x, emptyPt.y);
+    await page.mouse.down();
+    await page.waitForTimeout(340);
+    await page.mouse.up();
+    await page.waitForTimeout(50);
+
+    const spritePt = await page.evaluate(() => window.__sprites.snapshot().positions[0]);
+    await page.mouse.move(spritePt.x, spritePt.y);
+    await page.mouse.down();
+    await page.mouse.move(spritePt.x + 120, spritePt.y - 80, { steps: 6 });
+    await page.mouse.up();
+    await page.waitForTimeout(200);
+
+    const finalSnap = await page.evaluate(() => window.__sprites.snapshot());
+    assert.equal(finalSnap.spriteCount, 150);
+    for (const p of finalSnap.positions) {
+      assert.ok(
+        Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.vx) && Number.isFinite(p.vy),
+        `non-finite sprite state: ${JSON.stringify(p)}`
+      );
+    }
     assert.deepEqual(errors, []);
   } finally {
     await context.close();

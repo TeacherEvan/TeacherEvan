@@ -1,8 +1,8 @@
-# PickaBoo Engine v4.1 — Architecture & Creative Computing Specs
+# PickaBoo & 150-Sprite Engine v5.0 — Architecture & Creative Computing Specs
 
-The **PickaBoo Engine** is an interactive 2D physics and procedural sound simulation built for the **TeacherEvan** portfolio showcase. It embodies the core philosophy: *"I build things that scale, things that teach, and things that explode."*
+The **PickaBoo Engine** and cloned **150-Sprite Interactive Playground** form a dual-engine 2D physics and procedural sound showcase built for **TeacherEvan**. It embodies the core philosophy: *"I build things that scale, things that teach, and things that explode."*
 
-Single source of truth: [`docs/index.html`](index.html) · Tests: [`tests/`](../tests/) · Banner pipeline: [`scripts/capture_banner.js`](../scripts/capture_banner.js)
+Single source of truth: [`docs/index.html`](index.html) + classic `file://`-safe IIFE modules (`docs/js/*.js`) · Tests: [`tests/`](../tests/) · Banner pipeline: [`scripts/capture_banner.js`](../scripts/capture_banner.js)
 
 ---
 
@@ -133,7 +133,15 @@ The Playwright renderer is the **only** generator of `assets/pickaboo-loop.gif`;
 
 ---
 
-## 7. Verification
+## 7. Cloned 150-Sprite Playground & Swipe Pager (v5.0)
+
+* **2-Page `HomePager` (`docs/js/home-pager.js`):** Swiping left (`dx < 0`, distance > 20% width or velocity > 0.45 px/ms) translates `#homePagerTrack` by `translateX(-100vw)` (`380ms cubic-bezier(0.16, 1, 0.3, 1)`), pausing PickaBoo on Page 0 (`inert`, `aria-hidden="true"`) and resuming the 150-sprite playground on Page 1. Supports `#btnExploreSprites`, `#sideScreenReturnBtn`, `.pager-dot`, and `ArrowLeft`/`ArrowRight`/`Escape`.
+* **150-Sprite Boids (`docs/js/sprite-engine.js`):** Hardcoded `SPRITE_COUNT = 150`, decoupled from game progression. Uses a zero-allocation `forEachNeighbor` spatial grid visitor (`120px` cells), deduplicated constellation lines (`p1.id < p2.id`, capped at `4` links per sprite), segmented `SpriteTrail` ring buffers (`TRAIL_MAX_SEGMENT = 160px`), pooled `SpriteSparks`, and a density-scaled `hitRadius = clamp(14, 24, sqrt((W * H) / (150 * 18)))`.
+* **Procedural Pentatonic Soundscape (`docs/js/ambient-soundscape.js`):** 4-oscillator Amaj9 drone pad + 10-zone pentatonic FM chimes (`A3`..`F#5`) with stereo panning and synchronous `AudioContext.resume()` on user gesture.
+
+---
+
+## 8. Verification
 
 `npm test` runs two suites:
 
