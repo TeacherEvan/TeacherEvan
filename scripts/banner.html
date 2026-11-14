@@ -170,6 +170,12 @@ const counts = new Uint8Array(SPRITE_COUNT);
 const px = new Float64Array(SPRITE_COUNT);
 const py = new Float64Array(SPRITE_COUNT);
 const pAngle = new Float64Array(SPRITE_COUNT);
+const MAX_EDGES = (SPRITE_COUNT * (SPRITE_COUNT - 1)) >> 1;
+const edgeI = new Uint16Array(MAX_EDGES);
+const edgeJ = new Uint16Array(MAX_EDGES);
+const edgeD2 = new Float64Array(MAX_EDGES);
+const edgeOrder = new Uint16Array(MAX_EDGES);
+const SHELL_GAPS = [1750, 701, 301, 132, 57, 23, 10, 4, 1];
 const _tmpPos = { x: 0, y: 0, angle: 0 };
 const _tmpMid = { x: 0, y: 0, angle: 0 };
 const _tmpTail = { x: 0, y: 0, angle: 0 };
@@ -220,31 +226,54 @@ function renderFrame(t) {
   ctx.stroke();
   ctx.restore();
 
-  // Deduplicated constellation lines (capped at 4 per sprite)
+  // Distance-ordered nearest-neighbor constellation lines (capped at 4 per sprite)
   counts.fill(0);
   const maxDistSq = 108 * 108;
-  ctx.lineWidth = 0.85;
+  let edgeCount = 0;
   for (let i = 0; i < SPRITE_COUNT; i++) {
-    if (counts[i] >= 4) continue;
     const x1 = px[i];
     const y1 = py[i];
-    const rgb = SPRITES[i].rgb;
     for (let j = i + 1; j < SPRITE_COUNT; j++) {
-      if (counts[i] >= 4 || counts[j] >= 4) continue;
       const dx = px[j] - x1;
       const dy = py[j] - y1;
       const d2 = dx * dx + dy * dy;
       if (d2 < maxDistSq) {
-        counts[i]++;
-        counts[j]++;
-        const op = 0.34 * (1 - d2 / maxDistSq);
-        ctx.strokeStyle = `rgba(${rgb}, ${op})`;
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(px[j], py[j]);
-        ctx.stroke();
+        edgeI[edgeCount] = i;
+        edgeJ[edgeCount] = j;
+        edgeD2[edgeCount] = d2;
+        edgeOrder[edgeCount] = edgeCount;
+        edgeCount++;
       }
     }
+  }
+  for (let g = 0; g < SHELL_GAPS.length; g++) {
+    const gap = SHELL_GAPS[g];
+    if (gap >= edgeCount) continue;
+    for (let k = gap; k < edgeCount; k++) {
+      const key = edgeOrder[k];
+      const keyDist = edgeD2[key];
+      let m = k;
+      while (m >= gap && edgeD2[edgeOrder[m - gap]] > keyDist) {
+        edgeOrder[m] = edgeOrder[m - gap];
+        m -= gap;
+      }
+      edgeOrder[m] = key;
+    }
+  }
+  ctx.lineWidth = 0.85;
+  for (let k = 0; k < edgeCount; k++) {
+    const idx = edgeOrder[k];
+    const i = edgeI[idx];
+    const j = edgeJ[idx];
+    if (counts[i] >= 4 || counts[j] >= 4) continue;
+    counts[i]++;
+    counts[j]++;
+    const op = 0.34 * (1 - edgeD2[idx] / maxDistSq);
+    ctx.strokeStyle = `rgba(${SPRITES[i].rgb}, ${op})`;
+    ctx.beginPath();
+    ctx.moveTo(px[i], py[i]);
+    ctx.lineTo(px[j], py[j]);
+    ctx.stroke();
   }
 
   // Tapered multi-segment motion trails
