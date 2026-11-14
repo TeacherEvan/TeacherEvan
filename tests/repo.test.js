@@ -6,7 +6,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 const { inspectGif } = require('../scripts/lib/gif');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -67,9 +69,12 @@ test('the legacy Python banner generator is gone', () => {
 
 test('version strings are consistent across engine, banner, asset and README', () => {
   const pkg = JSON.parse(read('package.json'));
+  const lock = JSON.parse(read('package-lock.json'));
   const short = pkg.version.split('.').slice(0, 2).join('.');   // 5.0
   const tag = `v${short}`;
   assert.equal(pkg.version, '5.0.0');
+  assert.equal(lock.version, pkg.version, 'package-lock.json root version must match package.json');
+  assert.equal(lock.packages[''].version, pkg.version, "package-lock.json packages[''].version must match package.json");
 
   assert.ok(read('docs/index.html').includes(tag), `docs/index.html missing ${tag}`);
   assert.ok(read('scripts/banner.html').includes(tag), `scripts/banner.html missing ${tag}`);
@@ -98,9 +103,32 @@ test('banner GIF is a valid, looping, high-frame-rate loop', () => {
   const info = inspectGif(path.join(ROOT, 'assets/pickaboo-loop.gif'));
   assert.equal(info.width, 800, 'banner GIF should be encoded at 800px wide');
   assert.ok(info.height > 150 && info.height < 400, `unexpected GIF height ${info.height}`);
-  assert.ok(info.frames >= 100, `expected >= 100 frames, got ${info.frames}`);
+  assert.equal(info.frames, 150, `expected 150 frames, got ${info.frames}`);
   assert.ok(info.loops, 'banner GIF must loop infinitely');
   assert.ok(info.bytes < 5 * 1024 * 1024, 'banner GIF must stay under the 5MB Camo limit');
+});
+
+test('inspectGif rejects a truncated GIF missing the 0x3B trailer', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pickaboo-gif-test-'));
+  const tmpFile = path.join(tmpDir, 'truncated.gif');
+  try {
+    const valid = fs.readFileSync(path.join(ROOT, 'assets/pickaboo-loop.gif'));
+    const truncated = valid.subarray(0, valid.length - 1);
+    fs.writeFileSync(tmpFile, truncated);
+    assert.throws(() => inspectGif(tmpFile));
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('git tracked files never include node_modules', () => {
+  const tracked = execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8' })
+    .split(/\r?\n/)
+    .filter(Boolean);
+  const offenders = tracked.filter(
+    f => f === 'node_modules' || f.startsWith('node_modules/') || f.includes('/node_modules/')
+  );
+  assert.deepEqual(offenders, [], `node_modules must not be tracked in git: ${offenders.join(', ')}`);
 });
 
 test('banner SVG is animated and versioned', () => {
