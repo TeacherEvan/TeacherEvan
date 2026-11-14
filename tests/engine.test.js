@@ -114,10 +114,19 @@ test('tap spawns ripple and hold releases supernova with finite coordinates', as
   await page.mouse.move(320, 240);
   await page.mouse.down();
   await page.waitForTimeout(500);
+  const beforeRelease = await page.evaluate(() => window.__sprites.snapshot());
   await page.mouse.up();
   await page.waitForTimeout(100);
 
   const afterHold = await page.evaluate(() => window.__sprites.snapshot());
+  const meanSpeed = snap =>
+    snap.positions.reduce((sum, s) => sum + Math.hypot(s.vx, s.vy), 0) / snap.positions.length;
+  const speedBefore = meanSpeed(beforeRelease);
+  const speedAfter = meanSpeed(afterHold);
+  assert.ok(
+    speedAfter > speedBefore,
+    `expected mean radial speed to increase after supernova release (${speedBefore} -> ${speedAfter})`
+  );
   assert.equal(afterHold.activePointers, 0);
   for (const s of afterHold.positions) {
     assert.ok(Number.isFinite(s.x) && Number.isFinite(s.y));
@@ -146,6 +155,8 @@ test('grabbing, dragging, and flinging a sprite keeps kinetic momentum smoothly'
 
   const afterFling = await page.evaluate(() => window.__sprites.snapshot());
   assert.equal(afterFling.grabbed, 0);
+  assert.ok(afterFling.positions[0].vx > 0, `expected vx > 0 after (+140, +90) fling, got ${afterFling.positions[0].vx}`);
+  assert.ok(afterFling.positions[0].vy > 0, `expected vy > 0 after (+140, +90) fling, got ${afterFling.positions[0].vy}`);
   for (const s of afterFling.positions) {
     assert.ok(Number.isFinite(s.x) && Number.isFinite(s.y));
     assert.ok(Number.isFinite(s.vx) && Number.isFinite(s.vy));
