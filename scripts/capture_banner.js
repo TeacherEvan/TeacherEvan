@@ -50,9 +50,9 @@ const OUTPUT      = path.join(ROOT, 'assets', 'pickaboo-loop.gif');
     browser = null;
     console.log('All frames captured. Encoding GIF…');
 
-    // Two-pass ffmpeg GIF: 20fps, scaled width, optimized palette
-    const vf = `fps=20,scale=${OUT_W}:-1:flags=lanczos,split[s0][s1];` +
-      `[s0]palettegen=max_colors=80:reserve_transparent=0:stats_mode=diff[p];` +
+    // Two-pass ffmpeg GIF: 25fps, scaled width, optimized palette
+    const vf = `fps=${FPS},scale=${OUT_W}:-1:flags=lanczos,split[s0][s1];` +
+      `[s0]palettegen=max_colors=64:reserve_transparent=0:stats_mode=diff[p];` +
       `[s1][p]paletteuse=dither=bayer:bayer_scale=3:diff_mode=rectangle`;
 
     execFileSync('ffmpeg', [
@@ -67,7 +67,7 @@ const OUTPUT      = path.join(ROOT, 'assets', 'pickaboo-loop.gif');
     const info = inspectGif(OUTPUT);
     const sizeKB = Math.round(fs.statSync(OUTPUT).size / 1024);
     if (!info.loops) throw new Error('Encoded GIF is not marked as looping');
-    if (info.frames < 60) throw new Error(`Encoded GIF has too few frames (${info.frames})`);
+    if (info.frames !== FRAMES) throw new Error(`Expected ${FRAMES} frames, got ${info.frames}`);
     if (info.width !== OUT_W) throw new Error(`Unexpected GIF width ${info.width} (expected ${OUT_W})`);
 
     console.log(`✓ Done — ${path.relative(ROOT, OUTPUT)}  (${sizeKB} KB, ${info.width}×${info.height}, ${info.frames} frames, looping)`);

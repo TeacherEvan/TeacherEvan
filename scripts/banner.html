@@ -16,6 +16,7 @@ const ctx = canvas.getContext('2d');
 const W = 900;
 const H = 300;
 const DURATION = 6.0;
+const DU_DT = (Math.PI * 2) / DURATION;
 const SPRITE_COUNT = 100;
 
 const PALETTE = [
@@ -143,38 +144,61 @@ function drawShape(x, y, angle, sprite) {
   ctx.restore();
 }
 
-function posAt(s, t) {
-  const u = (t / DURATION) * Math.PI * 2;
-  let x = s.x0 + Math.sin(u * s.freqX + s.phase) * s.ampX + Math.cos(u + s.phase) * 18;
-  let y = s.y0 + Math.cos(u * s.freqY + s.phase) * s.ampY + Math.sin(u + s.phase) * 12;
-  x = ((x % W) + W) % W;
-  y = ((y % H) + H) % H;
-  return { x, y };
+const bgCanvas = document.createElement('canvas');
+bgCanvas.width = W;
+bgCanvas.height = H;
+{
+  const bgCtx = bgCanvas.getContext('2d');
+  bgCtx.fillStyle = '#0e0c16';
+  bgCtx.fillRect(0, 0, W, H);
+
+  // Subtle layered radial nebula wash
+  const grad1 = bgCtx.createRadialGradient(W * 0.36, H * 0.44, 15, W * 0.36, H * 0.44, 420);
+  grad1.addColorStop(0, 'rgba(91, 33, 182, 0.18)');
+  grad1.addColorStop(1, 'rgba(14, 12, 22, 0)');
+  bgCtx.fillStyle = grad1;
+  bgCtx.fillRect(0, 0, W, H);
+
+  const grad2 = bgCtx.createRadialGradient(W * 0.72, H * 0.62, 10, W * 0.72, H * 0.62, 340);
+  grad2.addColorStop(0, 'rgba(0, 180, 216, 0.10)');
+  grad2.addColorStop(1, 'rgba(14, 12, 22, 0)');
+  bgCtx.fillStyle = grad2;
+  bgCtx.fillRect(0, 0, W, H);
+}
+
+const counts = new Uint8Array(SPRITE_COUNT);
+const px = new Float64Array(SPRITE_COUNT);
+const py = new Float64Array(SPRITE_COUNT);
+const pAngle = new Float64Array(SPRITE_COUNT);
+const _tmpPos = { x: 0, y: 0, angle: 0 };
+const _tmpMid = { x: 0, y: 0, angle: 0 };
+const _tmpTail = { x: 0, y: 0, angle: 0 };
+
+function posAt(s, t, out = _tmpPos) {
+  const u = t * DU_DT;
+  const ax = u * s.freqX + s.phase;
+  const ay = u * s.freqY + s.phase;
+  const ap = u + s.phase;
+  const x = s.x0 + Math.sin(ax) * s.ampX + Math.cos(ap) * 18;
+  const y = s.y0 + Math.cos(ay) * s.ampY + Math.sin(ap) * 12;
+  const dx = DU_DT * (Math.cos(ax) * s.ampX * s.freqX - Math.sin(ap) * 18);
+  const dy = DU_DT * (-Math.sin(ay) * s.ampY * s.freqY + Math.cos(ap) * 12);
+  out.x = ((x % W) + W) % W;
+  out.y = ((y % H) + H) % H;
+  out.angle = Math.atan2(dy, dx);
+  return out;
 }
 
 function renderFrame(t) {
-  ctx.fillStyle = '#0e0c16';
-  ctx.fillRect(0, 0, W, H);
+  ctx.drawImage(bgCanvas, 0, 0);
 
-  // Subtle layered radial nebula wash
-  const grad1 = ctx.createRadialGradient(W * 0.36, H * 0.44, 15, W * 0.36, H * 0.44, 420);
-  grad1.addColorStop(0, 'rgba(91, 33, 182, 0.18)');
-  grad1.addColorStop(1, 'rgba(14, 12, 22, 0)');
-  ctx.fillStyle = grad1;
-  ctx.fillRect(0, 0, W, H);
-
-  const grad2 = ctx.createRadialGradient(W * 0.72, H * 0.62, 10, W * 0.72, H * 0.62, 340);
-  grad2.addColorStop(0, 'rgba(0, 180, 216, 0.10)');
-  grad2.addColorStop(1, 'rgba(14, 12, 22, 0)');
-  ctx.fillStyle = grad2;
-  ctx.fillRect(0, 0, W, H);
-
-  // Compute all 100 sprite positions for seamless 6s loop
-  const pts = SPRITES.map((s) => {
-    const p = posAt(s, t);
-    const pNext = posAt(s, t + 0.03);
-    return { s, x: p.x, y: p.y, angle: Math.atan2(pNext.y - p.y, pNext.x - p.x) };
-  });
+  // Compute all 100 sprite positions and headings for seamless 6s loop
+  for (let i = 0; i < SPRITE_COUNT; i++) {
+    posAt(SPRITES[i], t, _tmpPos);
+    px[i] = _tmpPos.x;
+    py[i] = _tmpPos.y;
+    pAngle[i] = _tmpPos.angle;
+  }
 
   // Ripple pulse at center-right
   const pulseT = (t % 3.0) / 3.0;
@@ -197,26 +221,27 @@ function renderFrame(t) {
   ctx.restore();
 
   // Deduplicated constellation lines (capped at 4 per sprite)
-  const counts = new Uint8Array(SPRITE_COUNT);
+  counts.fill(0);
   const maxDistSq = 108 * 108;
   ctx.lineWidth = 0.85;
-  for (let i = 0; i < pts.length; i++) {
+  for (let i = 0; i < SPRITE_COUNT; i++) {
     if (counts[i] >= 4) continue;
-    const p1 = pts[i];
-    for (let j = i + 1; j < pts.length; j++) {
+    const x1 = px[i];
+    const y1 = py[i];
+    const rgb = SPRITES[i].rgb;
+    for (let j = i + 1; j < SPRITE_COUNT; j++) {
       if (counts[i] >= 4 || counts[j] >= 4) continue;
-      const p2 = pts[j];
-      const dx = p2.x - p1.x;
-      const dy = p2.y - p1.y;
+      const dx = px[j] - x1;
+      const dy = py[j] - y1;
       const d2 = dx * dx + dy * dy;
       if (d2 < maxDistSq) {
         counts[i]++;
         counts[j]++;
         const op = 0.34 * (1 - d2 / maxDistSq);
-        ctx.strokeStyle = `rgba(${p1.s.rgb}, ${op})`;
+        ctx.strokeStyle = `rgba(${rgb}, ${op})`;
         ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y);
-        ctx.lineTo(p2.x, p2.y);
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(px[j], py[j]);
         ctx.stroke();
       }
     }
@@ -224,31 +249,32 @@ function renderFrame(t) {
 
   // Tapered multi-segment motion trails
   ctx.lineCap = 'round';
-  for (let i = 0; i < pts.length; i++) {
-    const p = pts[i];
-    const pMid = posAt(p.s, t - 0.08);
-    const pTail = posAt(p.s, t - 0.16);
-    if (Math.hypot(p.x - pMid.x, p.y - pMid.y) < 60 && Math.hypot(pMid.x - pTail.x, pMid.y - pTail.y) < 60) {
-      ctx.strokeStyle = `rgba(${p.s.rgb}, 0.18)`;
+  for (let i = 0; i < SPRITE_COUNT; i++) {
+    const s = SPRITES[i];
+    const x = px[i];
+    const y = py[i];
+    posAt(s, t - 0.08, _tmpMid);
+    posAt(s, t - 0.16, _tmpTail);
+    if (Math.hypot(x - _tmpMid.x, y - _tmpMid.y) < 60 && Math.hypot(_tmpMid.x - _tmpTail.x, _tmpMid.y - _tmpTail.y) < 60) {
+      ctx.strokeStyle = `rgba(${s.rgb}, 0.18)`;
       ctx.lineWidth = 0.9;
       ctx.beginPath();
-      ctx.moveTo(pTail.x, pTail.y);
-      ctx.lineTo(pMid.x, pMid.y);
+      ctx.moveTo(_tmpTail.x, _tmpTail.y);
+      ctx.lineTo(_tmpMid.x, _tmpMid.y);
       ctx.stroke();
 
-      ctx.strokeStyle = `rgba(${p.s.rgb}, 0.42)`;
+      ctx.strokeStyle = `rgba(${s.rgb}, 0.42)`;
       ctx.lineWidth = 1.7;
       ctx.beginPath();
-      ctx.moveTo(pMid.x, pMid.y);
-      ctx.lineTo(p.x, p.y);
+      ctx.moveTo(_tmpMid.x, _tmpMid.y);
+      ctx.lineTo(x, y);
       ctx.stroke();
     }
   }
 
   // Draw all 100 sprites
-  for (let i = 0; i < pts.length; i++) {
-    const p = pts[i];
-    drawShape(p.x, p.y, p.angle, p.s);
+  for (let i = 0; i < SPRITE_COUNT; i++) {
+    drawShape(px[i], py[i], pAngle[i], SPRITES[i]);
   }
 
   // Header pills
