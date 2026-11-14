@@ -29,6 +29,13 @@ const SEED_SCRIPT = `(() => {
 
 let browser = null;
 
+async function waitForEngineReady(page) {
+  await page.waitForFunction(() => {
+    const snap = window.__sprites?.snapshot();
+    return Boolean(snap && snap.spriteCount === 100);
+  });
+}
+
 test.before(async () => {
   try {
     browser = await chromium.launch({ args: ['--no-sandbox'] });
@@ -58,7 +65,7 @@ test('loads directly into 100-sprite playground with no errors or swipe pager', 
 
   await page.addInitScript(SEED_SCRIPT);
   await page.goto(ENGINE_URL, { waitUntil: 'load' });
-  await page.waitForTimeout(200);
+  await waitForEngineReady(page);
 
   const info = await page.evaluate(() => ({
     version: window.__sprites?.version,
@@ -87,7 +94,7 @@ test('tap spawns ripple and hold releases supernova with finite coordinates', as
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   await page.addInitScript(SEED_SCRIPT);
   await page.goto(ENGINE_URL, { waitUntil: 'load' });
-  await page.waitForTimeout(150);
+  await waitForEngineReady(page);
 
   // Pick a genuine empty-space point outside every sprite's hit radius
   const emptySpot = await page.evaluate(() => {
@@ -104,8 +111,9 @@ test('tap spawns ripple and hold releases supernova with finite coordinates', as
 
   await page.mouse.move(emptySpot.x, emptySpot.y);
   await page.mouse.down();
-  await page.waitForTimeout(50);
+  await page.waitForFunction(() => window.__sprites.snapshot().activePointers === 1);
   await page.mouse.up();
+  await page.waitForFunction(() => window.__sprites.snapshot().ripples >= 1);
 
   const afterTap = await page.evaluate(() => window.__sprites.snapshot());
   assert.ok(afterTap.ripples >= 1, `expected >= 1 ripple after tap, got ${afterTap.ripples}`);
@@ -116,7 +124,9 @@ test('tap spawns ripple and hold releases supernova with finite coordinates', as
   await page.waitForTimeout(500);
   const beforeRelease = await page.evaluate(() => window.__sprites.snapshot());
   await page.mouse.up();
-  await page.waitForTimeout(100);
+  await page.waitForFunction(
+    () => window.__sprites.snapshot().activePointers === 0 && window.__sprites.snapshot().ripples >= 1
+  );
 
   const afterHold = await page.evaluate(() => window.__sprites.snapshot());
   const meanSpeed = snap =>
@@ -141,7 +151,7 @@ test('grabbing, dragging, and flinging a sprite keeps kinetic momentum smoothly'
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   await page.addInitScript(SEED_SCRIPT);
   await page.goto(ENGINE_URL, { waitUntil: 'load' });
-  await page.waitForTimeout(150);
+  await waitForEngineReady(page);
 
   const target = await page.evaluate(() => window.__sprites.snapshot().positions[0]);
   await page.mouse.move(target.x, target.y);
@@ -151,7 +161,7 @@ test('grabbing, dragging, and flinging a sprite keeps kinetic momentum smoothly'
 
   await page.mouse.move(target.x + 140, target.y + 90, { steps: 6 });
   await page.mouse.up();
-  await page.waitForTimeout(60);
+  await page.waitForFunction(() => window.__sprites.snapshot().grabbed === 0);
 
   const afterFling = await page.evaluate(() => window.__sprites.snapshot());
   assert.equal(afterFling.grabbed, 0);
@@ -169,7 +179,7 @@ test('sound and motion buttons toggle aria-pressed', async (t) => {
   if (!browser) return t.skip('Chromium not available');
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   await page.goto(ENGINE_URL, { waitUntil: 'load' });
-  await page.waitForTimeout(150);
+  await page.waitForFunction(() => Boolean(document.querySelector('#btnSound')) && Boolean(document.querySelector('#btnMotion')));
 
   const soundBefore = await page.getAttribute('#btnSound', 'aria-pressed');
   await page.click('#btnSound');
@@ -199,7 +209,7 @@ test('mobile 390px viewport fits controls cleanly with 44px touch targets and re
   const page = await context.newPage();
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto(ENGINE_URL, { waitUntil: 'load' });
-  await page.waitForTimeout(150);
+  await page.waitForFunction(() => Boolean(document.querySelector('#btnSound')) && Boolean(document.querySelector('#btnMotion')));
 
   const metrics = await page.evaluate(() => {
     const controls = [...document.querySelectorAll('header button, header a')];
@@ -227,7 +237,7 @@ test('pointercancel and blur clear active pointers cleanly', async (t) => {
   if (!browser) return t.skip('Chromium not available');
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   await page.goto(ENGINE_URL, { waitUntil: 'load' });
-  await page.waitForTimeout(150);
+  await page.waitForFunction(() => Boolean(document.querySelector('#btnSound')) && Boolean(document.querySelector('#btnMotion')));
 
   await page.mouse.move(500, 400);
   await page.mouse.down();
@@ -238,6 +248,132 @@ test('pointercancel and blur clear active pointers cleanly', async (t) => {
   const snap = await page.evaluate(() => window.__sprites.snapshot());
   assert.equal(snap.activePointers, 0);
   assert.equal(snap.grabbed, 0);
+
+  await page.close();
+});
+
+test('particle budget ceiling bounds sparks to SPARK_CAPACITY and keeps 100 sprites under rapid bursts', async (t) => {
+  if (!browser) return t.skip('Chromium not available');
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  await page.addInitScript(SEED_SCRIPT);
+  await page.goto(ENGINE_URL, { waitUntil: 'load' });
+  await waitForEngineReady(page);
+
+  const sparkCheck = await page.evaluate(() => {
+    const { SpriteSparks, SPARK_CAPACITY } = window.TeacherEvan.SpriteSparks;
+    const pool = new SpriteSparks();
+    for (let i = 0; i < 12; i++) {
+      pool.burst(400 + i * 20, 300, '#00f0ff', { count: 48, speed: 5 });
+    }
+    const lenAfterOverfill = pool.length;
+    const cursorAfterOverfill = pool.cursor;
+    pool.update(1 / 60);
+    const lenAfterStep = pool.length;
+    return { SPARK_CAPACITY, lenAfterOverfill, cursorAfterOverfill, lenAfterStep };
+  });
+
+  assert.equal(sparkCheck.SPARK_CAPACITY, 360);
+  assert.equal(sparkCheck.lenAfterOverfill, 360, 'spark ring buffer must cap at SPARK_CAPACITY');
+  assert.equal(sparkCheck.cursorAfterOverfill, (12 * 48) % 360);
+  assert.ok(sparkCheck.lenAfterStep <= 360);
+
+  // Trigger rapid canvas taps to stress live engine budget
+  for (let i = 0; i < 8; i++) {
+    await page.mouse.click(220 + i * 90, 250 + (i % 3) * 80);
+  }
+  await page.waitForFunction(() => window.__sprites.snapshot().activePointers === 0);
+
+  const snap = await page.evaluate(() => window.__sprites.snapshot());
+  assert.equal(snap.spriteCount, 100);
+  assert.equal(snap.positions.length, 100);
+  for (const s of snap.positions) {
+    assert.ok(Number.isFinite(s.x) && Number.isFinite(s.y));
+    assert.ok(Number.isFinite(s.vx) && Number.isFinite(s.vy));
+  }
+
+  await page.close();
+});
+
+test('Web Audio mute/unmute reuses a single AudioContext and tracks oscillator lifecycle', async (t) => {
+  if (!browser) return t.skip('Chromium not available');
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+
+  await page.addInitScript(() => {
+    const stats = {
+      contextsCreated: 0,
+      oscillatorsCreated: 0,
+      oscillatorsEnded: 0,
+      suspendCalls: 0,
+      resumeCalls: 0,
+    };
+    window.__audioStats = stats;
+
+    const NativeAC = window.AudioContext || window.webkitAudioContext;
+    if (!NativeAC) return;
+
+    function WrappedAudioContext(...args) {
+      const ctx = new NativeAC(...args);
+      stats.contextsCreated++;
+
+      const origCreateOsc = ctx.createOscillator.bind(ctx);
+      ctx.createOscillator = () => {
+        const osc = origCreateOsc();
+        stats.oscillatorsCreated++;
+        osc.addEventListener('ended', () => {
+          stats.oscillatorsEnded++;
+        });
+        return osc;
+      };
+
+      const origSuspend = ctx.suspend.bind(ctx);
+      ctx.suspend = () => {
+        stats.suspendCalls++;
+        return origSuspend();
+      };
+
+      const origResume = ctx.resume.bind(ctx);
+      ctx.resume = () => {
+        stats.resumeCalls++;
+        return origResume();
+      };
+
+      return ctx;
+    }
+    WrappedAudioContext.prototype = NativeAC.prototype;
+    window.AudioContext = WrappedAudioContext;
+    window.webkitAudioContext = WrappedAudioContext;
+  });
+
+  await page.goto(ENGINE_URL, { waitUntil: 'load' });
+  await waitForEngineReady(page);
+
+  // First canvas tap unlocks audio and creates the single AudioContext + drone + chime oscillators
+  await page.mouse.click(640, 400);
+  await page.waitForFunction(() => window.__audioStats.contextsCreated === 1);
+  const afterUnlock = await page.evaluate(() => ({ ...window.__audioStats }));
+  assert.equal(afterUnlock.contextsCreated, 1);
+  assert.ok(afterUnlock.oscillatorsCreated >= 5, `expected >= 5 oscillators (4 drone + LFO), got ${afterUnlock.oscillatorsCreated}`);
+
+  // Mute via #btnSound -> should not create new oscillators on canvas tap
+  await page.click('#btnSound');
+  assert.equal(await page.getAttribute('#btnSound', 'aria-pressed'), 'false');
+  const oscBeforeMutedTap = await page.evaluate(() => window.__audioStats.oscillatorsCreated);
+  await page.mouse.click(500, 320);
+  const afterMutedTap = await page.evaluate(() => ({ ...window.__audioStats }));
+  assert.equal(afterMutedTap.contextsCreated, 1);
+  assert.equal(afterMutedTap.oscillatorsCreated, oscBeforeMutedTap, 'muted taps must not spawn chime oscillators');
+
+  // Unmute via #btnSound -> reuses existing AudioContext and resumes without duplicating context
+  await page.click('#btnSound');
+  assert.equal(await page.getAttribute('#btnSound', 'aria-pressed'), 'true');
+  await page.mouse.click(720, 360);
+  await page.waitForFunction(
+    prevOsc => window.__audioStats.oscillatorsCreated > prevOsc,
+    oscBeforeMutedTap
+  );
+  const afterUnmuteTap = await page.evaluate(() => ({ ...window.__audioStats }));
+  assert.equal(afterUnmuteTap.contextsCreated, 1, 'unmuting must reuse the single AudioContext');
+  assert.ok(afterUnmuteTap.oscillatorsCreated > oscBeforeMutedTap, 'unmuted tap must resume spawning chime oscillators');
 
   await page.close();
 });
