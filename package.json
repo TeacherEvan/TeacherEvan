@@ -3,6 +3,13 @@
   "version": "5.0.0",
   "description": "TeacherEvan GitHub Profile & PickaBoo Engine Creative Physics Sandbox",
   "main": "docs/index.html",
+  "files": [
+    "docs/",
+    "assets/",
+    "scripts/",
+    "README.md",
+    "package.json"
+  ],
   "scripts": {
     "dev": "python3 -m http.server 3000 -d docs",
     "serve": "npx serve docs",
