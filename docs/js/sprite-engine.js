@@ -54,14 +54,14 @@
             this.isPaused = true;
             this.lastFrameTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
             this.elapsedTime = 0;
-            this.partitionCellSize = 130;
+            this.connectionDistance = 148;
+            this.partitionCellSize = Math.max(150, this.connectionDistance);
             this.spatialGrid = [];
             this.gridCols = 0;
             this.gridRows = 0;
             this.connectionCounts = new Uint8Array(SPRITE_COUNT);
             this.mousePosition = { x: -1000, y: -1000 };
             this.mouseInfluenceRadius = 185;
-            this.connectionDistance = 148;
             this.particleTypes = ['circle', 'square', 'triangle', 'diamond'];
             this.colorPalette = SPRITE_PALETTES;
             this.constellationInk = { light: '10, 109, 149', dark: '0, 240, 255' };

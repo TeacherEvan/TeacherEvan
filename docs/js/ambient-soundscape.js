@@ -74,6 +74,14 @@
             this.enabled = Boolean(enabled);
             if (!this.enabled) {
                 this.fadeOut(0.3);
+            } else if (this.ctx && this.ctx.state !== 'closed' && !this.isActive) {
+                this.fadeIn(0.5);
+                if (this.idleTimeout) {
+                    clearTimeout(this.idleTimeout);
+                }
+                this.idleTimeout = setTimeout(() => {
+                    this.fadeOut(1.5);
+                }, 6000);
             }
         }
 
@@ -185,6 +193,10 @@
         }
 
         fadeOut(durationSec = 1.5) {
+            if (this.idleTimeout) {
+                clearTimeout(this.idleTimeout);
+                this.idleTimeout = null;
+            }
             if (!this.ctx || !this.masterGain) return;
             this.isActive = false;
             const now = this.ctx.currentTime;
