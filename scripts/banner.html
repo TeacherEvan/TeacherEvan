@@ -180,7 +180,7 @@ const _tmpPos = { x: 0, y: 0, angle: 0 };
 const _tmpMid = { x: 0, y: 0, angle: 0 };
 const _tmpTail = { x: 0, y: 0, angle: 0 };
 
-function posAt(s, t, out = _tmpPos) {
+function posAt(s, t, out = { x: 0, y: 0, angle: 0 }) {
   const u = t * DU_DT;
   const ax = u * s.freqX + s.phase;
   const ay = u * s.freqY + s.phase;
@@ -234,8 +234,12 @@ function renderFrame(t) {
     const x1 = px[i];
     const y1 = py[i];
     for (let j = i + 1; j < SPRITE_COUNT; j++) {
-      const dx = px[j] - x1;
-      const dy = py[j] - y1;
+      let dx = px[j] - x1;
+      let dy = py[j] - y1;
+      if (dx > W * 0.5) dx -= W;
+      else if (dx < -W * 0.5) dx += W;
+      if (dy > H * 0.5) dy -= H;
+      else if (dy < -H * 0.5) dy += H;
       const d2 = dx * dx + dy * dy;
       if (d2 < maxDistSq) {
         edgeI[edgeCount] = i;
@@ -270,9 +274,19 @@ function renderFrame(t) {
     counts[j]++;
     const op = 0.34 * (1 - edgeD2[idx] / maxDistSq);
     ctx.strokeStyle = `rgba(${SPRITES[i].rgb}, ${op})`;
+    let dx = px[j] - px[i];
+    let dy = py[j] - py[i];
+    if (dx > W * 0.5) dx -= W;
+    else if (dx < -W * 0.5) dx += W;
+    if (dy > H * 0.5) dy -= H;
+    else if (dy < -H * 0.5) dy += H;
     ctx.beginPath();
     ctx.moveTo(px[i], py[i]);
-    ctx.lineTo(px[j], py[j]);
+    ctx.lineTo(px[i] + dx, py[i] + dy);
+    if (px[i] + dx !== px[j] || py[i] + dy !== py[j]) {
+      ctx.moveTo(px[j], py[j]);
+      ctx.lineTo(px[j] - dx, py[j] - dy);
+    }
     ctx.stroke();
   }
 
@@ -284,19 +298,41 @@ function renderFrame(t) {
     const y = py[i];
     posAt(s, t - 0.08, _tmpMid);
     posAt(s, t - 0.16, _tmpTail);
-    if (Math.hypot(x - _tmpMid.x, y - _tmpMid.y) < 60 && Math.hypot(_tmpMid.x - _tmpTail.x, _tmpMid.y - _tmpTail.y) < 60) {
+    let dx1 = x - _tmpMid.x;
+    let dy1 = y - _tmpMid.y;
+    if (dx1 > W * 0.5) dx1 -= W;
+    else if (dx1 < -W * 0.5) dx1 += W;
+    if (dy1 > H * 0.5) dy1 -= H;
+    else if (dy1 < -H * 0.5) dy1 += H;
+
+    let dx2 = _tmpMid.x - _tmpTail.x;
+    let dy2 = _tmpMid.y - _tmpTail.y;
+    if (dx2 > W * 0.5) dx2 -= W;
+    else if (dx2 < -W * 0.5) dx2 += W;
+    if (dy2 > H * 0.5) dy2 -= H;
+    else if (dy2 < -H * 0.5) dy2 += H;
+
+    if (Math.hypot(dx1, dy1) < 60 && Math.hypot(dx2, dy2) < 60) {
       ctx.strokeStyle = `rgba(${s.rgb}, 0.18)`;
       ctx.lineWidth = 0.9;
       ctx.beginPath();
       ctx.moveTo(_tmpTail.x, _tmpTail.y);
-      ctx.lineTo(_tmpMid.x, _tmpMid.y);
+      ctx.lineTo(_tmpTail.x + dx2, _tmpTail.y + dy2);
+      if (_tmpTail.x + dx2 !== _tmpMid.x || _tmpTail.y + dy2 !== _tmpMid.y) {
+        ctx.moveTo(_tmpMid.x, _tmpMid.y);
+        ctx.lineTo(_tmpMid.x - dx2, _tmpMid.y - dy2);
+      }
       ctx.stroke();
 
       ctx.strokeStyle = `rgba(${s.rgb}, 0.42)`;
       ctx.lineWidth = 1.7;
       ctx.beginPath();
       ctx.moveTo(_tmpMid.x, _tmpMid.y);
-      ctx.lineTo(x, y);
+      ctx.lineTo(_tmpMid.x + dx1, _tmpMid.y + dy1);
+      if (_tmpMid.x + dx1 !== x || _tmpMid.y + dy1 !== y) {
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - dx1, y - dy1);
+      }
       ctx.stroke();
     }
   }

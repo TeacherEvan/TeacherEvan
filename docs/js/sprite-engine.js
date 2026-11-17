@@ -3,15 +3,18 @@
 
     const { SPRITE_PALETTES, hexToRgbChannels } = root.TeacherEvan.SpritePalette;
     const { SpriteTrail, TRAIL_CAPACITY, TRAIL_MAX_SEGMENT } = root.TeacherEvan.SpriteTrail;
-    const { SpriteSparks } = root.TeacherEvan.SpriteSparks;
+    const { SpriteSparks, SPARK_CAPACITY } = root.TeacherEvan.SpriteSparks;
 
     const SPRITE_COUNT = 100;
     const TAP_SLOP_PX = 14;
     const NOTE_ZONES = 10;
     const GRAB_SCALE = 1.75;
     const MAX_CONNECTIONS_PER_SPRITE = 4;
-    const MAX_FRAME_DT_SEC = 0.05; // 20 fps floor to avoid huge jumps on tab resume
-    const SPRING_SUB_DT_SEC = 0.00833; // 120 Hz precision ceiling
+    const FIXED_DT_SEC = 1 / 60; // Deterministic 60 Hz simulation step
+    const MAX_FRAME_DT_SEC = 0.05; // 20 fps floor (max 3 fixed steps per frame)
+    const MAX_SUBSTEPS = 4;
+    const SPRING_SUB_DT_SEC = 0.00833; // 120 Hz spring precision ceiling
+    const DRAG_SPARK_MIN_INTERVAL_MS = 16;
 
     function hueForX(x, width) {
         if (!(width > 0)) return 0;
@@ -53,7 +56,13 @@
             this.animationFrameId = null;
             this.isPaused = true;
             this.lastFrameTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
+            this._accumulator = 0;
+            this.stepCount = 0;
             this.elapsedTime = 0;
+            this.fps = 60;
+            this.frameTimeMs = 16.67;
+            this.hudEnabled = false;
+
             this.connectionDistance = 148;
             this.partitionCellSize = Math.max(150, this.connectionDistance);
             this.spatialGrid = [];
@@ -72,6 +81,7 @@
             this._backdropW = 0;
             this._backdropH = 0;
             this._singularityEmitCarry = 0;
+            this._lastDragSparkMs = 0;
 
             this.activePointers = new Map();
             this.grabbedSprites = new Map();
@@ -96,15 +106,43 @@
             this._onPointerMove = (e) => this.handlePointerMove(e);
             this._onPointerUp = (e) => this.handlePointerUp(e);
             this._onBlur = () => this.clearActivePointers();
+            this._onVisibilityChange = () => {
+                if (typeof document !== 'undefined' && document.hidden) {
+                    this.clearActivePointers();
+                } else {
+                    this.lastFrameTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
+                    this._accumulator = 0;
+                }
+            };
 
             window.addEventListener('resize', this._onResize);
             window.addEventListener('blur', this._onBlur);
+            if (typeof document !== 'undefined') {
+                document.addEventListener('visibilitychange', this._onVisibilityChange);
+            }
             this.canvas.addEventListener('mouseleave', this._onMouseLeave);
             this.canvas.addEventListener('pointerleave', this._onMouseLeave);
             this.canvas.addEventListener('pointerdown', this._onPointerDown);
             window.addEventListener('pointermove', this._onPointerMove, { passive: true });
             window.addEventListener('pointerup', this._onPointerUp);
             window.addEventListener('pointercancel', this._onPointerUp);
+        }
+
+        destroy() {
+            this.pause();
+            window.removeEventListener('resize', this._onResize);
+            window.removeEventListener('blur', this._onBlur);
+            if (typeof document !== 'undefined') {
+                document.removeEventListener('visibilitychange', this._onVisibilityChange);
+            }
+            if (this.canvas) {
+                this.canvas.removeEventListener('mouseleave', this._onMouseLeave);
+                this.canvas.removeEventListener('pointerleave', this._onMouseLeave);
+                this.canvas.removeEventListener('pointerdown', this._onPointerDown);
+            }
+            window.removeEventListener('pointermove', this._onPointerMove);
+            window.removeEventListener('pointerup', this._onPointerUp);
+            window.removeEventListener('pointercancel', this._onPointerUp);
         }
 
         clearActivePointers() {
@@ -155,7 +193,6 @@
             bctx.fillStyle = dark ? '#0e0c16' : '#f4f1ff';
             bctx.fillRect(0, 0, w, h);
 
-            // Soft layered cosmic nebula wash computed once per resize (zero per-frame gradient cost)
             const radius = Math.max(w, h) * 0.72;
             const g1 = bctx.createRadialGradient(w * 0.36, h * 0.42, 0, w * 0.36, h * 0.42, radius);
             if (dark) {
@@ -270,6 +307,18 @@
             return document.documentElement.getAttribute('data-theme') !== 'light';
         }
 
+        rethemeParticles() {
+            const palette = this.colorPalette[this.isDarkTheme() ? 'dark' : 'light'];
+            for (let i = 0; i < this.particles.length; i++) {
+                const p = this.particles[i];
+                const colorSet = palette[p.id % palette.length];
+                const mod = p.id % 3;
+                p.color = mod === 0 ? colorSet.primary : mod === 1 ? colorSet.secondary : colorSet.accent;
+                p.rgb = hexToRgbChannels(p.color);
+            }
+            this._rebuildBackdropCache();
+        }
+
         createSingleParticle(id) {
             const palette = this.colorPalette[this.isDarkTheme() ? 'dark' : 'light'];
             const colorSet = palette[id % palette.length];
@@ -302,10 +351,10 @@
                 maxForce: 0.045,
                 trail: new SpriteTrail(TRAIL_CAPACITY),
                 pulsePhase: Math.random() * Math.PI * 2,
-                pulseSpeed: 1.3 + Math.random() * 1.8, // radians / sec
+                pulseSpeed: 1.3 + Math.random() * 1.8,
                 pop: 1,
                 popV: 0,
-                energy: 0, // [0..1] flash from ripples / fling / supernova
+                energy: 0,
                 isGrabbed: false,
             };
         }
@@ -347,7 +396,6 @@
                 }
             });
 
-            // Passive hover repulsion only when no pointer is pressed/grabbed (prevents singularity fight)
             if (this.activePointers.size === 0 && this.grabbedSprites.size === 0) {
                 const mouseDx = this.mousePosition.x - particle.x;
                 const mouseDy = this.mousePosition.y - particle.y;
@@ -378,12 +426,10 @@
             particle.vx += cohX * 0.008 * forceScale;
             particle.vy += cohY * 0.008 * forceScale;
 
-            // Gentle swirl wander so sprites never stall completely
             const wanderAngle = this.elapsedTime * 0.45 + particle.id * 0.71;
             particle.vx += Math.cos(wanderAngle) * 0.014 * dtScale;
             particle.vy += Math.sin(wanderAngle) * 0.014 * dtScale;
 
-            // Smooth exponential decay of excess kinetic speed (preserves fling/supernova impulses!)
             const speed = Math.hypot(particle.vx, particle.vy);
             if (speed > particle.maxSpeed) {
                 const targetSpeed = expDecay(speed, particle.maxSpeed, 2.75, dt);
@@ -398,7 +444,7 @@
             }
         }
 
-        updateParticlePositions(dt = 1 / 60) {
+        updateParticlePositions(dt = FIXED_DT_SEC) {
             const safeDt = Math.max(0.001, Math.min(MAX_FRAME_DT_SEC, dt));
             const dtScale = safeDt * 60;
             this.elapsedTime += safeDt;
@@ -411,7 +457,9 @@
             if (emitSingularSparks) this._singularityEmitCarry %= 0.042;
 
             for (const ptr of this.activePointers.values()) {
-                const heldDuration = nowTime - ptr.startTime;
+                ptr.heldMs = (ptr.heldMs || 0) + safeDt * 1000;
+                const wallHeld = nowTime - ptr.startTime;
+                const heldDuration = Math.max(ptr.heldMs, wallHeld);
                 const travelled = Math.hypot(
                     ptr.x - (ptr.startX ?? ptr.x),
                     ptr.y - (ptr.startY ?? ptr.y)
@@ -496,7 +544,6 @@
                 particle.x += particle.vx * dtScale;
                 particle.y += particle.vy * dtScale;
 
-                // Smooth heading interpolation so fast directional turns don't snap
                 const speed = Math.hypot(particle.vx, particle.vy);
                 if (speed > 0.2) {
                     const targetHeading = Math.atan2(particle.vy, particle.vx);
@@ -517,7 +564,7 @@
 
             for (let i = this.ripples.length - 1; i >= 0; i--) {
                 const r = this.ripples[i];
-                r.t = (r.t ?? 0) + safeDt * 1.75; // ~0.57s lifetime at every refresh rate
+                r.t = (r.t ?? 0) + safeDt * 1.75;
                 const t = Math.min(1, r.t);
                 const eased = 1 - Math.pow(1 - t, 3);
                 r.radius = 4 + (r.maxRadius - 4) * eased;
@@ -530,7 +577,27 @@
             this.sparks.update(safeDt);
         }
 
-        advancePop(particle, dt = 1 / 60) {
+        /**
+         * Fixed-timestep accumulator step: ensures 30 Hz, 60 Hz, and 120 Hz monitors
+         * advance the exact same number of 60 Hz simulation ticks over any time window.
+         */
+        stepSimulation(elapsedSeconds) {
+            const clamped = Math.min(MAX_FRAME_DT_SEC, Math.max(0, elapsedSeconds));
+            this._accumulator += clamped;
+            let substeps = 0;
+            while (this._accumulator + 1e-9 >= FIXED_DT_SEC && substeps < MAX_SUBSTEPS) {
+                this.updateParticlePositions(FIXED_DT_SEC);
+                this._accumulator = Math.max(0, this._accumulator - FIXED_DT_SEC);
+                this.stepCount++;
+                substeps++;
+            }
+            if (substeps === MAX_SUBSTEPS) {
+                this._accumulator = 0;
+            }
+            return substeps;
+        }
+
+        advancePop(particle, dt = FIXED_DT_SEC) {
             if (this.reducedMotion) {
                 particle.pop = particle.isGrabbed ? 1.35 : 1;
                 particle.popV = 0;
@@ -557,9 +624,10 @@
 
         emitSparks(x, y, color, opts) {
             const capRatio = this.reducedMotion ? 0.4 : 1;
-            const scaledOpts = opts && opts.count
-                ? Object.assign({}, opts, { count: Math.max(1, Math.round(opts.count * capRatio)) })
-                : opts;
+            const scaledOpts =
+                opts && opts.count
+                    ? Object.assign({}, opts, { count: Math.max(1, Math.round(opts.count * capRatio)) })
+                    : opts;
             this.sparks.burst(x, y, color, scaledOpts);
         }
 
@@ -675,6 +743,7 @@
                     startX: x,
                     startY: y,
                     startTime: typeof performance !== 'undefined' ? performance.now() : Date.now(),
+                    heldMs: 0,
                     isSingularity: false,
                 });
                 this.notifyInteraction({ type: 'touch', x, y, speed: 1 });
@@ -687,7 +756,6 @@
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
 
-            // Passive hover repulsion only for mouse hover with no active grab/touch
             if (
                 this.activePointers.size === 0 &&
                 this.grabbedSprites.size === 0 &&
@@ -697,9 +765,11 @@
                 this.mousePosition.y = y;
             }
 
+            const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+            const canEmitDragSpark = now - this._lastDragSparkMs >= DRAG_SPARK_MIN_INTERVAL_MS;
+
             const grab = this.grabbedSprites.get(e.pointerId);
             if (grab) {
-                const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
                 const dtMs = Math.max(4, now - grab.lastTime);
                 const dtSec = dtMs / 1000;
                 const instVx = ((x - grab.lastX) / dtMs) * 16.67;
@@ -716,7 +786,8 @@
                 grab.particle.energy = 1;
 
                 const speed = Math.hypot(grab.vx, grab.vy);
-                if (speed > 1.5 && Math.random() < 0.45) {
+                if (canEmitDragSpark && speed > 1.5 && Math.random() < 0.45) {
+                    this._lastDragSparkMs = now;
                     this.emitSparks(x, y, grab.particle.color, {
                         count: 1,
                         speed: 0.9,
@@ -732,7 +803,8 @@
                 const moveDist = Math.hypot(moveDx, moveDy);
                 ptr.x = x;
                 ptr.y = y;
-                if (moveDist > 2) {
+                if (canEmitDragSpark && moveDist > 2) {
+                    this._lastDragSparkMs = now;
                     this.emitSparks(x, y, this.noteInk(x), {
                         count: 2,
                         speed: 1.0,
@@ -783,7 +855,7 @@
             } else if (this.activePointers.has(e.pointerId)) {
                 const ptr = this.activePointers.get(e.pointerId);
                 const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-                const heldDuration = now - ptr.startTime;
+                const heldDuration = Math.max(ptr.heldMs || 0, now - ptr.startTime);
                 const travelled = Math.hypot(
                     ptr.x - (ptr.startX ?? ptr.x),
                     ptr.y - (ptr.startY ?? ptr.y)
@@ -884,7 +956,6 @@
             this.renderShapeGeometry(ctx, particle.type, size);
             ctx.fill();
 
-            // Luminous specular core
             ctx.fillStyle = '#ffffff';
             ctx.globalAlpha = alpha * Math.min(0.95, 0.66 + 0.28 * energy);
             this.renderShapeGeometry(ctx, particle.type, size * 0.42);
@@ -918,6 +989,88 @@
             }
         }
 
+        drawEducatorHud() {
+            const ctx = this.ctx;
+            const dark = this.isDarkTheme();
+            ctx.save();
+
+            // 1. Spatial partition grid overlay
+            ctx.strokeStyle = dark ? 'rgba(139, 92, 246, 0.14)' : 'rgba(109, 40, 217, 0.14)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let c = 1; c < this.gridCols; c++) {
+                const x = c * this.partitionCellSize;
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, this.logicalHeight);
+            }
+            for (let r = 1; r < this.gridRows; r++) {
+                const y = r * this.partitionCellSize;
+                ctx.moveTo(0, y);
+                ctx.lineTo(this.logicalWidth, y);
+            }
+            ctx.stroke();
+
+            // 2. Mouse influence & active pointer radii
+            if (this.mousePosition.x > 0 && this.mousePosition.y > 0) {
+                ctx.strokeStyle = 'rgba(0, 240, 255, 0.28)';
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.arc(this.mousePosition.x, this.mousePosition.y, this.mouseInfluenceRadius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // 3. Velocity vectors for all 100 sprites
+            ctx.strokeStyle = 'rgba(212, 175, 55, 0.72)';
+            ctx.lineWidth = 1.15;
+            ctx.beginPath();
+            for (let i = 0; i < this.particles.length; i++) {
+                const p = this.particles[i];
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x + p.vx * 12, p.y + p.vy * 12);
+            }
+            ctx.stroke();
+
+            // 4. Telemetry readout panel (bottom-left)
+            const panelX = 16;
+            const panelY = Math.max(76, this.logicalHeight - 134);
+            const panelW = 244;
+            const panelH = 82;
+            ctx.fillStyle = dark ? 'rgba(20, 16, 38, 0.88)' : 'rgba(248, 246, 255, 0.90)';
+            ctx.strokeStyle = 'rgba(212, 175, 55, 0.55)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            if (typeof ctx.roundRect === 'function') {
+                ctx.roundRect(panelX, panelY, panelW, panelH, 10);
+            } else {
+                ctx.rect(panelX, panelY, panelW, panelH);
+            }
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = dark ? '#f5e6b4' : '#1e1b4b';
+            ctx.font = 'bold 11px ui-monospace, SFMono-Regular, Menlo, monospace';
+            ctx.fillText(
+                `FPS: ${Math.round(this.fps)}  ·  FRAME: ${this.frameTimeMs.toFixed(2)} ms`,
+                panelX + 12,
+                panelY + 22
+            );
+            ctx.fillStyle = dark ? '#00f0ff' : '#0a86ad';
+            ctx.fillText(
+                `SPARKS: ${this.sparks.length}/${SPARK_CAPACITY}  ·  RIPPLES: ${this.ripples.length}`,
+                panelX + 12,
+                panelY + 44
+            );
+            ctx.fillStyle = dark ? '#d8b4fe' : '#6d28d9';
+            ctx.fillText(
+                `GRID: ${this.gridCols}x${this.gridRows} (${this.partitionCellSize}px) · STEPS: ${this.stepCount}`,
+                panelX + 12,
+                panelY + 66
+            );
+
+            ctx.restore();
+        }
+
         renderParticles() {
             const dark = this.isDarkTheme();
             const themeKey = dark ? 'dark' : 'light';
@@ -939,7 +1092,6 @@
             this.drawTrails(particleAlpha);
             if (this.ripples.length > 0) this.drawRipples();
 
-            // Active singularity vortex indicator
             for (const ptr of this.activePointers.values()) {
                 if (!ptr.isSingularity) continue;
                 const pulse = this.reducedMotion ? 0 : Math.sin(this.elapsedTime * 7.2) * 3.5;
@@ -1009,6 +1161,7 @@
             }
 
             this.sparks.render(this.ctx, { additive: dark, reducedMotion: this.reducedMotion });
+            if (this.hudEnabled) this.drawEducatorHud();
         }
 
         drawRipples() {
@@ -1094,7 +1247,6 @@
             let currentRgb = '255, 255, 255';
             let currentBoost = 0;
 
-            // Render each contiguous run in 3 smooth tapered bands (removes beaded joint overlap & cuts draw calls 4x)
             const strokeRun = (run) => {
                 const n = run.length;
                 if (n < 2) return;
@@ -1137,11 +1289,13 @@
         _tick() {
             if (this.isPaused) return;
             const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-            const dt = Math.min(MAX_FRAME_DT_SEC, Math.max(0.001, (now - (this.lastFrameTime || now)) / 1000));
+            const rawDtMs = Math.max(1, now - (this.lastFrameTime || now));
+            this.frameTimeMs = this.frameTimeMs * 0.88 + Math.min(50, rawDtMs) * 0.12;
+            this.fps = Math.min(240, Math.max(1, 1000 / this.frameTimeMs));
+            const dt = Math.min(MAX_FRAME_DT_SEC, rawDtMs / 1000);
             this.lastFrameTime = now;
 
-            // Update and render every single rAF frame cleanly (zero skipped renders at 60/120/144Hz)
-            this.updateParticlePositions(dt);
+            this.stepSimulation(dt);
             this.renderParticles();
 
             this.animationFrameId = requestAnimationFrame(() => this._tick());
@@ -1151,6 +1305,7 @@
             if (!this.isPaused) return;
             this.isPaused = false;
             this.lastFrameTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
+            this._accumulator = 0;
             this.resize();
             this.animationFrameId = requestAnimationFrame(() => this._tick());
         }
@@ -1168,12 +1323,25 @@
             this.reducedMotion = Boolean(flag);
         }
 
+        setHudEnabled(flag) {
+            this.hudEnabled = Boolean(flag);
+        }
+
         getSnapshot() {
+            let singularityPointers = 0;
+            for (const ptr of this.activePointers.values()) {
+                if (ptr.isSingularity) singularityPointers++;
+            }
             return {
                 spriteCount: this.particles.length,
                 grabbed: this.grabbedSprites.size,
                 ripples: this.ripples.length,
                 activePointers: this.activePointers.size,
+                singularityPointers,
+                sparkCount: this.sparks.length,
+                stepCount: this.stepCount,
+                hudEnabled: this.hudEnabled,
+                fps: Math.round(this.fps),
                 hitRadius: this.computeHitRadius(),
                 isPaused: this.isPaused,
                 positions: this.particles.map((p) => ({

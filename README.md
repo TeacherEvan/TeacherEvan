@@ -52,7 +52,7 @@ const PickaBoo: Creator = {
   focus:     "Real-time interactive simulations, creative computing & distributed systems",
   passions:  ["Systems Architecture", "Pedagogy & Mentoring", "Creative Coding & Game Feel"],
 
-  easterEgg: "Move your cursor near sprites in the live game to trigger 4s countdowns & chain reactions 💥"
+  easterEgg: "Drag & fling sprites, tap for ripples, hold for a supernova, or press D for the Educator HUD 💥"
 };
 ```
 

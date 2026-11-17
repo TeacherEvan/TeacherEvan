@@ -11,33 +11,35 @@ Single source of truth: [`docs/index.html`](index.html) + classic `file://`-safe
 ```
   ┌─────────────────────────────────────────────────────────────────────────┐
   │                            USER INTERACTION                             │
-  │     - Desktop: Mouse move & click crosshair reticle                     │
+  │     - Desktop: Mouse drag/fling, tap ripples, hold for supernova        │
   │     - Mobile: Multi-touch pointer events (touch-action: none)           │
   └───────────────────────┬─────────────────────────┬───────────────────────┘
                           │                         │
                           ▼                         ▼
   ┌────────────────────────────────────┐   ┌──────────────────────────────────┐
-  │        POINTER LIFECYCLE            │   │      FIXED-STEP SIMULATION       │
-  │  - Map<pointerId, {x, y}>          │   │  - 60 Hz accumulator (PHYS_DT)  │
-  │  - pointerleave/blur ⇒ purge stale  │   │  - dt-scaled forces (px/s²)     │
+  │        POINTER LIFECYCLE           │   │      FIXED-STEP SIMULATION       │
+  │  - Grab/fling & hold state         │   │  - 60 Hz accumulator             │
+  │  - pointerleave/blur/visibility    │   │    (FIXED_DT_SEC = 1/60)         │
+  │    purge stale pointers            │   │  - MAX_SUBSTEPS = 4              │
   └────────────────────┬───────────────┘   └───────────────┬──────────────────┘
                        │                                   │
                        ▼                                   ▼
   ┌────────────────────────────────────────────┐  ┌──────────────────────────────┐
-  │              AESTHETICS & FEEDBACK          │  │          SIMULATION          │
-  │  - Trauma-based camera shake (render only) │  │  - Steering / wander forces  │
-  │  - Jitter, shockwave rings, spark trails   │  │  - Exponential damping       │
-  │  - Screen shake disabled by reduced motion │  │  - Blast impulse + chaining  │
-  └────────────────────────────────────────────┘  └───────────────┬──────────────┘
-                                                                │
-                                                                ▼
+  │              AESTHETICS & FEEDBACK         │  │          SIMULATION          │
+  │  - Tapered SpriteTrail ring buffers        │  │  - Toroidal boids flocking   │
+  │  - Pre-rendered radial glow stamps         │  │  - Spatial hash grid (130px) │
+  │  - Educator Telemetry & Physics HUD (D)    │  │  - Sub-stepped grab springs  │
+  └────────────────────────────────────────────┘  │  - Singularity / Supernova   │
+                                                  └───────────────┬──────────────┘
+                                                                  │
+                                                                  ▼
   ┌─────────────────────────────────────┐  ┌────────────────────────────────┐
-  │         AUDIO SYNTHESIS             │  │       PARTICLE EXPLOSIONS      │
-  │  - Web Audio Stereo Panner          │  │  - Radial velocity impulse     │
-  │  - Exponential pitch-sliding beeps  │  │  - Kinetic shockwave rings     │
-  │  - Filtered sub-bass thump & noise  │  │  - Cascading chain reactions   │
-  └─────────────────────────────────────┘  │  - Global particle ceiling     │
-                                           └────────────────────────────────┘
+  │         AUDIO SYNTHESIS             │  │       PARTICLE EFFECTS         │
+  │  - AmbientSoundscape (Web Audio)    │  │  - Velocity-aligned sparks     │
+  │  - 4-oscillator Amaj9 drone pad     │  │    (SpriteSparks pool)         │
+  │  - 10-zone pentatonic FM chimes     │  │  - Expanding tap ripples       │
+  │  - 8-voice polyphony cap & panning  │  │  - Supernova radial impulse    │
+  └─────────────────────────────────────┘  └────────────────────────────────┘
 ```
 
 ---
@@ -45,58 +47,46 @@ Single source of truth: [`docs/index.html`](index.html) + classic `file://`-safe
 ## 2. Mathematical & Physical Principles
 
 ### 2.1 Fixed Timestep & Frame-Rate Independence
-Rendering runs on `requestAnimationFrame`; **simulation** runs on a fixed step of $\Delta t = 1/60$ s. A real-time accumulator consumes whole steps and renders the remainder:
+Rendering runs on `requestAnimationFrame`; **simulation** runs on a fixed step of $\Delta t = 1/60$ s (`FIXED_DT_SEC`). A real-time accumulator (`_accumulator`) consumes whole steps (capped at `MAX_SUBSTEPS = 4` per frame to prevent spiral-of-death) and renders the remainder:
 
-$$n_{steps} = \left\lfloor \frac{t_{acc}}{\Delta t} \right\rfloor, \qquad t_{acc} \leftarrow t_{acc} - n_{steps}\Delta t$$
+$$n_{steps} = \min\left(\left\lfloor \frac{t_{acc}}{\Delta t} \right\rfloor,\ \text{MAX\_SUBSTEPS}\right), \qquad t_{acc} \leftarrow t_{acc} - n_{steps}\Delta t$$
 
-Consequence: the game plays *identically* at 30 Hz, 60 Hz and 120 Hz. Position integration is $\vec{P} \leftarrow \vec{P} + \vec{v}\,\Delta t$ — never per-frame — and damping is expressed exponentially rather than as a per-frame multiplier:
+Consequence: the simulation plays *identically* at 30 Hz, 60 Hz, and 120 Hz. Position integration and `SpriteTrail` ring-buffer pushes execute at an invariant 60 Hz, and damping is expressed exponentially via `expDecay`:
 
-$$e^{-\frac{k}{\Delta t}} \Big|_{\Delta t = 1/60} = e^{-3.72/60} \approx 0.94$$
+$$v \leftarrow v \cdot e^{-k \Delta t}$$
 
-so the legacy `v *= 0.94` feel is preserved *without* the old frame-rate coupling.
+### 2.2 Boids Flocking & Spatial Hash Grid
+Sprites (`SPRITE_COUNT = 100`) flock across a toroidal canvas (wrapping seamlessly across screen edges). Neighbor queries use a zero-allocation spatial hash grid (`130px` cells) via `forEachNeighbor`, computing separation, alignment, and cohesion forces without per-frame array allocations.
 
-### 2.2 Attraction & Steering Force
-Each sprite computes the Euclidean distance $d$ to the closest active pointer:
-$$d = \sqrt{(x_{ptr} - x)^2 + (y_{ptr} - y)^2}$$
+When grabbed, a sprite is driven by a sub-stepped spring (`stepSpringSubstepped`) toward the pointer and released with its fling velocity.
 
-When $d < R_{detect}$ (380 px), a normalized steering **acceleration** is applied:
-$$\vec{a}_{steer} = \left(\frac{\vec{P}_{ptr} - \vec{P}}{d}\right) \cdot \left(\frac{R_{detect} - d}{R_{detect}}\right) \cdot a_{max}, \qquad a_{max} = 2600\ \text{px/s}^2$$
+### 2.3 Singularity & Supernova
+Holding a pointer in place creates a gravitational singularity that pulls nearby sprites inward. Releasing the hold triggers a radial supernova impulse, scattering sprites outward and emitting velocity-aligned `SpriteSparks`.
 
-The velocity is clamped to $v_{max} = 720$ px/s, which yields a terminal chase speed of $a_{max}/k \approx 700$ px/s — fast enough to feel eager, slow enough to stay readable.
-
-### 2.3 Cascading Chain Reactions
-Upon detonation at $(x_0, y_0)$, an outward blast **impulse** is applied to all active neighbours within blast radius $R_{blast} = 260$ px:
-$$\vec{v}_{neighbor} \mathrel{+}= \left(\frac{\vec{P}_{neighbor} - \vec{P}_0}{\|\vec{P}_{neighbor} - \vec{P}_0\|}\right) \cdot \left(1 - \frac{d}{R_{blast}}\right) \cdot F_{impulse}, \qquad F_{impulse} = 900\ \text{px/s}$$
-
-Neighbouring sprites enter an accelerated countdown state ($\tau \le 1.4$ s), initiating a chain-reaction cascade.
-
-### 2.4 Camera Trauma & Screen Shake
-Camera shake uses an exponential trauma model ($\sigma \in [0, 1]$):
-$$\text{offset}_x = \text{random}(-1, 1) \cdot \sigma^2 \cdot \text{maxShake}$$
-$$\text{offset}_y = \text{random}(-1, 1) \cdot \sigma^2 \cdot \text{maxShake}$$
-
-Trauma decays linearly ($\frac{d\sigma}{dt} = -1.5$). The shake is applied **only at render time**, never to the simulation, so it cannot corrupt physics state.
+### 2.4 Tap Ripples & Tapered Trails
+Quick taps spawn expanding concentric ripples. Each sprite maintains a `SpriteTrail` ring buffer (`TRAIL_MAX_SEGMENT = 160px`) pushed once per fixed 60 Hz step, keeping trail length consistent across all refresh rates.
 
 ---
 
 ## 3. Procedural Web Audio Engine
 
-No external `.mp3` or `.wav` files are loaded. Sound is synthesized mathematically:
-1. **Countdown Ticks**: Pure sine wave with exponential frequency ramp based on remaining seconds:
-   $$f(t) = 360 + (4 - \lceil t \rceil) \cdot 230\ \text{Hz}$$
-2. **Spatial Panning**: Stereo panning calculated from normalized canvas coordinates:
+No external `.mp3` or `.wav` files are loaded. Sound is synthesized mathematically in `docs/js/ambient-soundscape.js`:
+1. **Amaj9 Drone Pad**: A 4-oscillator ambient drone pad.
+2. **Pentatonic FM Chimes**: 10-zone pentatonic FM chimes (`A3`..`F#5`) with an 8-voice polyphony cap and synchronous `AudioContext.resume()` on user gesture.
+3. **Spatial Panning**: Stereo panning calculated from normalized canvas coordinates:
    $$\text{pan} = \frac{2x}{W} - 1 \quad \in [-1, 1]$$
-3. **Explosion Transient**: A dual-stage synthesizer combining a sub-bass sine drop ($140\ \text{Hz} \to 28\ \text{Hz}$) with an exponentially decaying low-pass filtered noise burst ($450\ \text{Hz} \to 50\ \text{Hz}$).
 
 ---
 
-## 4. Educator Physics Sandbox Mode
+## 4. Educator Telemetry & Physics HUD
 
-Pressing **`D`** or clicking **🎓 Sandbox** overlays:
-* **Velocity Vectors**: Rendered in antique gold showing magnitude and heading ($v$ scaled by 0.12 s).
-* **Detection Ring**: The 380 px steering radius (indigo, faint).
-* **Contact Ring**: The 46 px detonation trigger (gold, dashed).
-* **Live Telemetry**: FPS, active particle count, shockwave count and chain multipliers.
+Pressing **`D`** or clicking **`🎓 HUD`** (`#btnHud`) toggles the interactive Educator Telemetry & Physics HUD, overlaying:
+* **Velocity Vectors**: Live heading and magnitude for each sprite.
+* **Spatial Partition Grid**: The `130px` spatial hash grid cells.
+* **Neighborhood Radii**: Boids interaction radii.
+* **Live Telemetry**: Tabular-nums overlay showing FPS, frame time (ms), fixed steps, and active sparks.
+
+Pressing **`T`** toggles between Dark Academia and Light Academia themes (`rethemeParticles()`).
 
 ---
 
@@ -104,16 +94,16 @@ Pressing **`D`** or clicking **🎓 Sandbox** overlays:
 
 | Control | Value | Purpose |
 | :--- | :--- | :--- |
-| `PHYS_DT` | 1/60 s | Fixed simulation step |
-| `MAX_SPEED` | 720 px/s | Hard velocity clamp |
-| `MAX_PARTICLES` | 900 | Global particle ceiling — oldest particles are evicted first |
-| `DAMPING_K` | 3.7 /s | Exponential velocity decay |
-| `GRAVITY` | 500 px/s² | Particle falloff |
+| `FIXED_DT_SEC` | 1/60 s | Fixed simulation step |
+| `MAX_SUBSTEPS` | 4 | Spiral-of-death cap per render frame |
+| `SPRITE_COUNT` | 100 | Fixed boids population |
+| `CELL_SIZE` | 130 px | Spatial hash grid cell size |
+| `TRAIL_MAX_SEGMENT` | 160 px | Maximum trail segment length |
 
-* **Pointer lifecycle** — the mouse pointer is dropped on `pointerleave`, `pointerout`, window `blur` and tab hide, so a stale reticle can never keep luring sprites.
-* **Finite-state guarantees** — steering divides by $d$; a zero-distance guard (`d > 1e-6`) makes NaN coordinates structurally impossible.
-* **Reduced motion** — `prefers-reduced-motion: reduce` (plus a manual **🌀 Motion** toggle) disables camera shake, freezes jitter and scales particle counts to 45 %.
-* **Accessible controls** — `aria-pressed` on every toggle, `role="img"` + label on the canvas, visible focus rings, and pinch-zoom left enabled.
+* **Pointer lifecycle** — active pointers are cleared on `pointerleave`, `pointerout`, window `blur`, and `visibilitychange` (tab hide), so a stale pointer can never keep luring sprites.
+* **Finite-state guarantees** — zero-distance guards prevent `NaN` coordinates under pointer overlap.
+* **Reduced motion** — `prefers-reduced-motion: reduce` (plus a manual **🌀 Motion** toggle) scales down motion effects.
+* **Accessible controls** — `aria-pressed` on every toggle, `role="img"` + label on the canvas, visible focus rings, `44px` coarse-pointer touch targets, and pinch-zoom left enabled.
 
 ---
 

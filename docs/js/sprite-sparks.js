@@ -9,6 +9,7 @@
         constructor(capacity = SPARK_CAPACITY) {
             this.capacity = Math.max(1, capacity | 0);
             this.items = [];
+            this._pool = [];
             this.cursor = 0;
         }
 
@@ -17,7 +18,7 @@
         }
 
         /**
-         * Emit `count` sparks from a point.
+         * Emit `count` sparks from a point using pooled spark objects.
          *
          * @param {number} x
          * @param {number} y
@@ -38,28 +39,51 @@
             for (let i = 0; i < count; i++) {
                 const angle = rng() * Math.PI * 2;
                 const v = speed * (0.35 + rng() * 0.75);
-                this._place({
+                this._place(
                     x,
                     y,
-                    vx: Math.cos(angle) * v + driftX,
-                    vy: Math.sin(angle) * v + driftY,
-                    life: 1,
-                    decay: (1.55 + rng() * 1.45) * decayScale, // per second (~26-50 frames)
-                    size: (1.2 + rng() * 1.9) * sizeScale,
-                    twinklePhase: rng() * Math.PI * 2,
-                    twinkleSpeed: 10 + rng() * 14,
-                    color,
-                });
+                    Math.cos(angle) * v + driftX,
+                    Math.sin(angle) * v + driftY,
+                    (1.55 + rng() * 1.45) * decayScale,
+                    (1.2 + rng() * 1.9) * sizeScale,
+                    rng() * Math.PI * 2,
+                    10 + rng() * 14,
+                    color
+                );
             }
         }
 
-        _place(spark) {
+        _place(x, y, vx, vy, decay, size, twinklePhase, twinkleSpeed, color) {
+            let spark;
             if (this.items.length < this.capacity) {
+                spark = this._pool.pop() || {
+                    x: 0,
+                    y: 0,
+                    vx: 0,
+                    vy: 0,
+                    life: 1,
+                    decay: 1,
+                    size: 1,
+                    twinklePhase: 0,
+                    twinkleSpeed: 10,
+                    color: '#ffffff',
+                };
                 this.items.push(spark);
-                return;
+            } else {
+                spark = this.items[this.cursor];
+                this.cursor = (this.cursor + 1) % this.capacity;
             }
-            this.items[this.cursor] = spark;
-            this.cursor = (this.cursor + 1) % this.capacity;
+
+            spark.x = x;
+            spark.y = y;
+            spark.vx = vx;
+            spark.vy = vy;
+            spark.life = 1;
+            spark.decay = decay;
+            spark.size = size;
+            spark.twinklePhase = twinklePhase;
+            spark.twinkleSpeed = twinkleSpeed;
+            spark.color = color;
         }
 
         /**
@@ -80,8 +104,10 @@
                 s.twinklePhase += s.twinkleSpeed * safeDt;
                 s.life -= s.decay * safeDt;
                 if (s.life <= 0) {
+                    const expired = this.items[i];
                     const last = this.items.pop();
                     if (i < this.items.length) this.items[i] = last;
+                    if (this._pool.length < this.capacity) this._pool.push(expired);
                 }
             }
             if (this.cursor >= this.items.length) this.cursor = 0;
@@ -102,7 +128,6 @@
                 const speedSq = s.vx * s.vx + s.vy * s.vy;
 
                 if (!reducedMotion && speedSq > 0.35) {
-                    // Velocity-aligned glowing spark needle
                     const tailLen = Math.min(14, Math.sqrt(speedSq) * (1.2 + life));
                     const inv = 1 / Math.sqrt(speedSq);
                     const tx = s.x - s.vx * inv * tailLen;
@@ -124,7 +149,6 @@
                         ctx.fill();
                     }
                 } else {
-                    // Soft stardust ember
                     ctx.globalAlpha = alpha * 0.35;
                     ctx.fillStyle = s.color;
                     ctx.beginPath();
@@ -141,7 +165,10 @@
         }
 
         clear() {
-            this.items.length = 0;
+            while (this.items.length > 0) {
+                const item = this.items.pop();
+                if (this._pool.length < this.capacity) this._pool.push(item);
+            }
             this.cursor = 0;
         }
     }

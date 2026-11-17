@@ -53,6 +53,7 @@
             this.lfo = null;
             this.isActive = false;
             this.idleTimeout = null;
+            this.suspendTimeout = null;
             this.maxMasterVolume = 0.22;
             this.activeChimes = 0;
             this.maxChimes = 8;
@@ -72,6 +73,10 @@
 
         setEnabled(enabled) {
             this.enabled = Boolean(enabled);
+            if (this.suspendTimeout) {
+                clearTimeout(this.suspendTimeout);
+                this.suspendTimeout = null;
+            }
             if (!this.enabled) {
                 this.fadeOut(0.3);
             } else if (this.ctx && this.ctx.state !== 'closed' && !this.isActive) {
@@ -181,6 +186,10 @@
         }
 
         fadeIn(durationSec = 1.5) {
+            if (this.suspendTimeout) {
+                clearTimeout(this.suspendTimeout);
+                this.suspendTimeout = null;
+            }
             if (!this.ensureAudioContext() || !this.masterGain) return;
             this.isActive = true;
             const now = this.ctx.currentTime;
@@ -197,19 +206,30 @@
                 clearTimeout(this.idleTimeout);
                 this.idleTimeout = null;
             }
+            if (this.suspendTimeout) {
+                clearTimeout(this.suspendTimeout);
+                this.suspendTimeout = null;
+            }
             if (!this.ctx || !this.masterGain) return;
             this.isActive = false;
             const now = this.ctx.currentTime;
             this.masterGain.gain.cancelScheduledValues(now);
             this.masterGain.gain.setValueAtTime(Math.max(0.0001, this.masterGain.gain.value), now);
             this.masterGain.gain.exponentialRampToValueAtTime(0.0001, now + durationSec);
-            setTimeout(() => this.suspendWhenQuiet(), durationSec * 1000 + 50);
+            this.suspendTimeout = setTimeout(() => {
+                this.suspendTimeout = null;
+                this.suspendWhenQuiet();
+            }, durationSec * 1000 + 50);
         }
 
         suspendWhenQuiet() {
             if (this.isActive || !this.ctx || this.ctx.state !== 'running') return;
             if (this.activeChimes > 0) {
-                setTimeout(() => this.suspendWhenQuiet(), SUSPEND_RETRY_MS);
+                if (this.suspendTimeout) clearTimeout(this.suspendTimeout);
+                this.suspendTimeout = setTimeout(() => {
+                    this.suspendTimeout = null;
+                    this.suspendWhenQuiet();
+                }, SUSPEND_RETRY_MS);
                 return;
             }
             this.ctx
@@ -262,6 +282,9 @@
                 fmGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
                 fmOsc.connect(fmGain);
                 fmGain.connect(osc.frequency);
+                fmOsc.onended = () => {
+                    try { fmGain.disconnect(); } catch (_e) {}
+                };
                 fmOsc.start(now);
                 fmOsc.stop(now + 0.22);
             } catch (_e) {
@@ -288,14 +311,15 @@
             const output = this.voiceOutput(x, width, now);
             chimeGain.connect(output);
 
+            let delaySend = null;
             if (this.delayNode && profile.echo > 0) {
                 try {
-                    const delaySend = this.ctx.createGain();
+                    delaySend = this.ctx.createGain();
                     delaySend.gain.setValueAtTime(profile.echo, now);
                     chimeGain.connect(delaySend);
                     delaySend.connect(this.delayNode);
                 } catch (_e) {
-                    // Ignore
+                    delaySend = null;
                 }
             }
 
@@ -305,6 +329,14 @@
                 if (released) return;
                 released = true;
                 this.activeChimes = Math.max(0, this.activeChimes - 1);
+                try { chimeGain.disconnect(); } catch (_e) {}
+                try { overtoneGain.disconnect(); } catch (_e) {}
+                if (output && output !== this.chimeBus) {
+                    try { output.disconnect(); } catch (_e) {}
+                }
+                if (delaySend) {
+                    try { delaySend.disconnect(); } catch (_e) {}
+                }
             };
             osc.onended = release;
             setTimeout(release, (duration + 0.5) * 1000);
@@ -325,6 +357,18 @@
                 arpGain.gain.exponentialRampToValueAtTime(0.0001, arpTime + 1.8);
                 arpOsc.connect(arpGain);
                 arpGain.connect(output);
+
+                this.activeChimes++;
+                let arpReleased = false;
+                const releaseArp = () => {
+                    if (arpReleased) return;
+                    arpReleased = true;
+                    this.activeChimes = Math.max(0, this.activeChimes - 1);
+                    try { arpGain.disconnect(); } catch (_e) {}
+                };
+                arpOsc.onended = releaseArp;
+                setTimeout(releaseArp, 2300);
+
                 arpOsc.start(arpTime);
                 arpOsc.stop(arpTime + 1.8);
             }

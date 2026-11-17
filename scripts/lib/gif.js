@@ -15,7 +15,7 @@ function skipSubBlocks(buf, pos) {
 
 /**
  * @param {string} file path to a GIF
- * @returns {{width:number,height:number,frames:number,loops:boolean,bytes:number}}
+ * @returns {{width:number,height:number,frames:number,loops:boolean,bytes:number,delays:number[]}}
  */
 function inspectGif(file) {
   const buf = fs.readFileSync(file);
@@ -31,20 +31,35 @@ function inspectGif(file) {
 
   let frames = 0;
   let loops = false;
+  const delays = [];
   while (i < buf.length) {
     const block = buf[i++];
     if (block === 0x3b) break;
     if (block === 0x21) {
       if (i >= buf.length) throw new Error('Truncated GIF extension');
       const label = buf[i++];
-      if (label === 0xff && i < buf.length) {
+      if (label === 0xf9) {
+        if (i + 5 >= buf.length) throw new Error('Truncated GIF GCE block');
         const blockSize = buf[i];
-        if (blockSize === 0x0b && i + 12 <= buf.length) {
-          const appId = buf.toString('ascii', i + 1, i + 12);
-          if (appId === 'NETSCAPE2.0' || appId === 'ANIMEXTS1.0') loops = true;
+        if (blockSize !== 0x04) {
+          throw new Error(`Invalid GIF GCE block size: expected 0x04, got 0x${blockSize.toString(16)}`);
         }
+        const delayCs = buf.readUInt16LE(i + 2);
+        if (buf[i + 5] !== 0x00) {
+          throw new Error(`Missing GIF GCE terminator (0x00), got 0x${buf[i + 5].toString(16)}`);
+        }
+        delays.push(delayCs);
+        i += 6;
+      } else {
+        if (label === 0xff && i < buf.length) {
+          const blockSize = buf[i];
+          if (blockSize === 0x0b && i + 12 <= buf.length) {
+            const appId = buf.toString('ascii', i + 1, i + 12);
+            if (appId === 'NETSCAPE2.0' || appId === 'ANIMEXTS1.0') loops = true;
+          }
+        }
+        i = skipSubBlocks(buf, i);
       }
-      i = skipSubBlocks(buf, i);
     } else if (block === 0x2c) {
       if (i + 9 > buf.length) throw new Error('Truncated GIF image descriptor');
       frames++;
@@ -60,7 +75,7 @@ function inspectGif(file) {
       throw new Error(`Unexpected GIF block 0x${block.toString(16)} at offset ${i - 1}`);
     }
   }
-  return { width, height, frames, loops, bytes: buf.length };
+  return { width, height, frames, loops, bytes: buf.length, delays };
 }
 
 module.exports = { inspectGif };

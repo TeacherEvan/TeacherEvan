@@ -11,14 +11,28 @@
     --surface-void:    oklch(0.14 0.020 278);
     --surface-layer-1: oklch(0.18 0.025 278);
     --surface-layer-2: oklch(0.22 0.028 278);
-    --surface-pill:    oklch(0.18 0.025 278 / 0.86);
+    --surface-pill:    oklch(0.18 0.025 278 / 0.88);
     --border-subtle:   oklch(1 0 0 / 0.11);
     --border-strong:   oklch(0.78 0.14 85 / 0.65);
     --specular-top:    inset 0 1px 0 0 oklch(1 0 0 / 0.14);
     --specular-elev:   inset 0 1px 0 0 oklch(1 0 0 / 0.24);
     --gold:            oklch(0.78 0.14 85);
+    --cyan:            oklch(0.86 0.16 205);
     --parchment:       oklch(0.94 0.04 92);
     --text-muted:      oklch(0.69 0.02 278);
+  }
+
+  html[data-theme="light"] {
+    --surface-void:    oklch(0.96 0.015 285);
+    --surface-layer-1: oklch(0.99 0.008 285);
+    --surface-layer-2: oklch(0.93 0.020 285);
+    --surface-pill:    oklch(0.98 0.010 285 / 0.88);
+    --border-subtle:   oklch(0.20 0.03 278 / 0.14);
+    --border-strong:   oklch(0.55 0.16 278 / 0.65);
+    --gold:            oklch(0.52 0.15 75);
+    --cyan:            oklch(0.52 0.14 215);
+    --parchment:       oklch(0.20 0.03 278);
+    --text-muted:      oklch(0.44 0.03 278);
   }
 
   html, body {
@@ -57,7 +71,7 @@
   }
 
   .pill {
-    background: rgba(26, 22, 48, 0.86);
+    background: rgba(26, 22, 48, 0.88);
     background: var(--surface-pill);
     border: 1px solid var(--border-subtle);
     backdrop-filter: blur(12px);
@@ -123,7 +137,7 @@
     justify-content: center;
     gap: 5px;
     min-height: 36px;
-    padding: 6px 12px;
+    padding: 6px 11px;
     border-radius: 8px;
     font-family: inherit;
     font-size: 12px;
@@ -147,6 +161,12 @@
       color 140ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
+  html[data-theme="light"] button,
+  html[data-theme="light"] .btn-link {
+    background: linear-gradient(180deg, oklch(0.99 0.008 285) 0%, oklch(0.93 0.015 285) 100%);
+    border-color: oklch(0.20 0.03 278 / 0.16);
+  }
+
   button::after, .btn-link::after {
     content: "";
     position: absolute;
@@ -166,7 +186,7 @@
     button, .btn-link {
       min-height: 44px;
       min-width: 44px;
-      padding: 8px 13px;
+      padding: 8px 10px;
     }
   }
 
@@ -175,6 +195,10 @@
       border-color: var(--border-strong);
       transform: translate3d(0, -1px, 0) scale(1.01);
       color: #ffffff;
+    }
+    html[data-theme="light"] button:hover:not(:disabled),
+    html[data-theme="light"] .btn-link:hover:not(:disabled) {
+      color: oklch(0.15 0.04 278);
     }
     button:hover:not(:disabled)::after, .btn-link:hover:not(:disabled)::after {
       opacity: 1;
@@ -246,6 +270,11 @@
     }
     .controls {
       justify-content: space-between;
+      gap: 4px;
+    }
+    button, .btn-link {
+      font-size: 11.5px;
+      padding: 6px 8px;
     }
     footer {
       font-size: 11px;
@@ -280,17 +309,18 @@
     <span class="stat" aria-label="Active sprites">✨ <strong id="spriteCount">100</strong></span>
   </div>
   <div class="pill controls">
-    <button id="btnSound" title="Toggle Synthesized Web Audio" aria-pressed="true">🔊 Sound</button>
+    <button id="btnSound" title="Toggle Synthesized Web Audio (M)" aria-pressed="true">🔊 Sound</button>
     <button id="btnMotion" title="Reduce motion and spark effects" aria-pressed="false">🌀 Motion</button>
-    <a href="https://github.com/TeacherEvan" target="_blank" rel="noopener" class="btn-link" title="Visit TeacherEvan on GitHub">← GitHub Profile</a>
+    <button id="btnHud" title="Toggle Educator Physics &amp; Telemetry HUD (D)" aria-pressed="false">🎓 HUD</button>
+    <a href="https://github.com/TeacherEvan" target="_blank" rel="noopener noreferrer" class="btn-link" title="Visit TeacherEvan on GitHub">← GitHub</a>
   </div>
 </header>
 
-<canvas id="spriteCanvas" role="img" aria-label="100 interactive colorful sprites playground. Drag, fling, tap for ripples, or hold for a supernova.">
+<canvas id="spriteCanvas" role="img" aria-label="100 interactive colorful sprites playground. Drag, fling, tap for ripples, hold for a supernova, or press D for the Educator Physics HUD.">
   Your browser does not support the HTML5 canvas element.
 </canvas>
 
-<footer><strong>Drag &amp; fling</strong> sprites · <strong>Tap</strong> for ripples · <strong>Hold</strong> for singularity &amp; supernova</footer>
+<footer><strong>Drag &amp; fling</strong> sprites · <strong>Tap</strong> for ripples · <strong>Hold</strong> for supernova · <strong>D</strong> HUD</footer>
 
 <script defer src="js/sprite-palette.js"></script>
 <script defer src="js/sprite-trail.js"></script>
@@ -305,6 +335,7 @@ window.addEventListener('DOMContentLoaded', function () {
   const spriteCanvas = document.getElementById('spriteCanvas');
   const btnSound = document.getElementById('btnSound');
   const btnMotion = document.getElementById('btnMotion');
+  const btnHud = document.getElementById('btnHud');
 
   const soundscape = new ns.AmbientSoundscape();
   const spritePlayground = new ns.SpritePlayground(spriteCanvas);
@@ -313,16 +344,18 @@ window.addEventListener('DOMContentLoaded', function () {
     soundscape.handleInteraction(event);
   });
 
-  // Start the 100-sprite playground immediately on load
   spritePlayground.resume();
 
   let soundOn = true;
-  btnSound.addEventListener('click', function () {
-    soundOn = !soundOn;
+  function syncSoundUI() {
     if (soundOn) soundscape.unlockFromGesture();
     soundscape.setEnabled(soundOn);
     btnSound.textContent = soundOn ? '🔊 Sound' : '🔇 Muted';
     btnSound.setAttribute('aria-pressed', String(soundOn));
+  }
+  btnSound.addEventListener('click', function () {
+    soundOn = !soundOn;
+    syncSoundUI();
   });
 
   const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -331,7 +364,7 @@ window.addEventListener('DOMContentLoaded', function () {
     spritePlayground.setReducedMotion(reduceMotion);
     btnMotion.setAttribute('aria-pressed', String(reduceMotion));
     btnMotion.classList.toggle('active', reduceMotion);
-    btnMotion.textContent = reduceMotion ? '🌀 Motion: Reduced' : '🌀 Motion';
+    btnMotion.textContent = reduceMotion ? '🌀 Reduced' : '🌀 Motion';
   }
   btnMotion.addEventListener('click', function () {
     reduceMotion = !reduceMotion;
@@ -345,13 +378,49 @@ window.addEventListener('DOMContentLoaded', function () {
   }
   syncMotionUI();
 
+  let hudOn = false;
+  function syncHudUI() {
+    spritePlayground.setHudEnabled(hudOn);
+    if (btnHud) {
+      btnHud.setAttribute('aria-pressed', String(hudOn));
+      btnHud.classList.toggle('active', hudOn);
+    }
+  }
+  if (btnHud) {
+    btnHud.addEventListener('click', function () {
+      hudOn = !hudOn;
+      syncHudUI();
+    });
+  }
+
+  window.addEventListener('keydown', function (e) {
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    if (e.key === 'd' || e.key === 'D') {
+      hudOn = !hudOn;
+      syncHudUI();
+    } else if (e.key === 'm' || e.key === 'M') {
+      soundOn = !soundOn;
+      syncSoundUI();
+    } else if (e.key === 't' || e.key === 'T') {
+      const rootEl = document.documentElement;
+      const nextTheme = rootEl.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      rootEl.setAttribute('data-theme', nextTheme);
+      spritePlayground.rethemeParticles();
+    }
+  });
+
   window.addEventListener('pointerdown', function () {
     if (soundOn) soundscape.unlockFromGesture();
   }, { passive: true });
 
   window.__sprites = {
     version: '5.0',
-    snapshot: function () { return spritePlayground.getSnapshot(); }
+    snapshot: function () { return spritePlayground.getSnapshot(); },
+    step: function (dtSeconds) { return spritePlayground.stepSimulation(dtSeconds); },
+    setHud: function (enabled) {
+      hudOn = Boolean(enabled);
+      syncHudUI();
+    }
   };
 });
 </script>
